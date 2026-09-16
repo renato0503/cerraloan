@@ -293,114 +293,188 @@
         return d;
     }
 
-    function seedIfEmpty() {
-        if (Object.keys(authUsers).length > 0) return;
+    // Garante um usuario de auth (por uid fixo) sem sobrescrever quem ja existe.
+    function ensureAuthUser(email, password, uid) {
+        if (authUsers[email]) return false;
+        authUsers[email] = { email, password, uid };
+        return true;
+    }
 
+    // Garante um documento (por id fixo) numa colecao, sem sobrescrever o que ja existe.
+    function ensureDoc(path, id, data) {
+        store.collections[path] = store.collections[path] || {};
+        if (store.collections[path][id]) return false;
+        store.collections[path][id] = data;
+        return true;
+    }
+
+    // Evita duplicar o emprestimo-base de um cliente que ja tinha dados de uma versao
+    // anterior do seed (com IDs aleatorios, antes de existirem IDs fixos).
+    function clientHasAnyLoan(clientId) {
+        const loans = store.collections.loans || {};
+        return Object.values(loans).some(l => l.clientId === clientId);
+    }
+
+    function ensureDemoData() {
         const now = new Date();
-        const adminUid = 'admin-demo';
-        const clientUid = 'cliente-demo';
-        const client2Uid = 'cliente2-demo';
-        const vendedorUid = 'vendedor-demo';
+        let changed = false;
 
-        authUsers['admin@admin.com'] = { email: 'admin@admin.com', password: 'admin123', uid: adminUid };
-        authUsers['cliente@cliente.com'] = { email: 'cliente@cliente.com', password: 'cliente123', uid: clientUid };
-        authUsers['cliente2@cliente.com'] = { email: 'cliente2@cliente.com', password: 'cliente123', uid: client2Uid };
-        authUsers['vendedor@vendedor.com'] = { email: 'vendedor@vendedor.com', password: 'vendedor123', uid: vendedorUid };
+        // ---- usuarios ----
+        changed = ensureAuthUser('admin@admin.com', 'admin123', 'admin-demo') || changed;
+        changed = ensureAuthUser('cliente@cliente.com', 'cliente123', 'cliente-demo') || changed;
+        changed = ensureAuthUser('cliente2@cliente.com', 'cliente123', 'cliente2-demo') || changed;
+        changed = ensureAuthUser('cliente3@cliente.com', 'cliente123', 'cliente3-demo') || changed;
+        changed = ensureAuthUser('cliente4@cliente.com', 'cliente123', 'cliente4-demo') || changed;
+        changed = ensureAuthUser('cliente5@cliente.com', 'cliente123', 'cliente5-demo') || changed;
+        changed = ensureAuthUser('vendedor@vendedor.com', 'vendedor123', 'vendedor-demo') || changed;
         saveAuthUsers();
 
-        store.collections.users = {
-            [adminUid]: { name: 'Administrador', email: 'admin@admin.com', role: 'admin', createdAt: makeTimestamp(now) },
-            [clientUid]: {
-                name: 'Cliente Teste', email: 'cliente@cliente.com', cpf: '123.456.789-00',
-                phone: '11999999999', role: 'client', createdAt: makeTimestamp(now)
-            },
-            [client2Uid]: {
-                name: 'Maria Souza', email: 'cliente2@cliente.com', cpf: '987.654.321-00',
-                phone: '11988887777', role: 'client', createdAt: makeTimestamp(daysAgo(now, 40))
-            },
-            [vendedorUid]: {
-                name: 'Vendedor Demo', email: 'vendedor@vendedor.com', role: 'vendedor', createdAt: makeTimestamp(daysAgo(now, 15))
-            }
-        };
+        changed = ensureDoc('users', 'admin-demo', {
+            name: 'Administrador', email: 'admin@admin.com', role: 'admin', createdAt: makeTimestamp(now)
+        }) || changed;
+        changed = ensureDoc('users', 'cliente-demo', {
+            name: 'Cliente Teste', email: 'cliente@cliente.com', cpf: '123.456.789-00',
+            phone: '11999999999', role: 'client', createdAt: makeTimestamp(now)
+        }) || changed;
+        changed = ensureDoc('users', 'cliente2-demo', {
+            name: 'Maria Souza', email: 'cliente2@cliente.com', cpf: '987.654.321-00',
+            phone: '11988887777', role: 'client', createdAt: makeTimestamp(daysAgo(now, 40))
+        }) || changed;
+        changed = ensureDoc('users', 'cliente3-demo', {
+            name: 'Pedro Almeida', email: 'cliente3@cliente.com', cpf: '456.789.123-00',
+            phone: '11977776655', role: 'client', createdAt: makeTimestamp(daysAgo(now, 60))
+        }) || changed;
+        changed = ensureDoc('users', 'cliente4-demo', {
+            name: 'Ana Costa', email: 'cliente4@cliente.com', cpf: '654.321.987-00',
+            phone: '11966554433', role: 'client', createdAt: makeTimestamp(daysAgo(now, 90))
+        }) || changed;
+        changed = ensureDoc('users', 'cliente5-demo', {
+            name: 'Lucas Ferreira', email: 'cliente5@cliente.com', cpf: '789.123.456-00',
+            phone: '11955443322', role: 'client', createdAt: makeTimestamp(daysAgo(now, 70))
+        }) || changed;
+        changed = ensureDoc('users', 'vendedor-demo', {
+            name: 'Vendedor Demo', email: 'vendedor@vendedor.com', role: 'vendedor', createdAt: makeTimestamp(daysAgo(now, 15))
+        }) || changed;
 
-        store.collections.settings = {
-            general: { companyName: 'CerraLoan', companyPhone: '62999999999', defaultDailyRate: 0.005 }
-        };
+        changed = ensureDoc('settings', 'general', {
+            companyName: 'CerraLoan', companyPhone: '62999999999', defaultDailyRate: 0.005
+        }) || changed;
 
-        // Cliente 1: emprestimo ativo com um pagamento parcial
-        const loan1Id = genId('loan');
-        const loan1Start = daysAgo(now, 25);
-        // Cliente 2: um emprestimo ja quitado + um ativo em atraso (sem pagamentos)
-        const loan2Id = genId('loan');
-        const loan2Start = daysAgo(now, 45);
-        const loan3Id = genId('loan');
-        const loan3Start = daysAgo(now, 35);
+        // ---- Cliente 1 (Cliente Teste): 1 emprestimo ativo, 1 pagamento parcial ----
+        // (so cria se o cliente ainda nao tiver nenhum emprestimo, para nao duplicar
+        // quem ja veio de uma versao anterior do seed com IDs aleatorios)
+        if (!clientHasAnyLoan('cliente-demo')) {
+            changed = ensureDoc('loans', 'loan-demo-1', {
+                clientId: 'cliente-demo', clientName: 'Cliente Teste', principalAmount: 1000,
+                dailyInterestRate: 0.005, startDate: daysAgo(now, 25).toISOString(), status: 'active',
+                notes: 'Empréstimo de demonstração', createdBy: 'admin-demo', createdAt: makeTimestamp(daysAgo(now, 25))
+            }) || changed;
+            changed = ensureDoc('loans/loan-demo-1/payments', 'pay-demo-1a', {
+                amount: 300, date: daysAgo(now, 10).toISOString(), type: 'partial',
+                registeredBy: 'admin-demo', createdAt: makeTimestamp(daysAgo(now, 10))
+            }) || changed;
+        }
 
-        store.collections.loans = {
-            [loan1Id]: {
-                clientId: clientUid, clientName: 'Cliente Teste', principalAmount: 1000,
-                dailyInterestRate: 0.005, startDate: loan1Start.toISOString(), status: 'active',
-                notes: 'Empréstimo de demonstração', createdBy: adminUid, createdAt: makeTimestamp(loan1Start)
-            },
-            [loan2Id]: {
-                clientId: client2Uid, clientName: 'Maria Souza', principalAmount: 500,
-                dailyInterestRate: 0.005, startDate: loan2Start.toISOString(), status: 'paid',
-                notes: 'Empréstimo já quitado', createdBy: adminUid, createdAt: makeTimestamp(loan2Start)
-            },
-            [loan3Id]: {
-                clientId: client2Uid, clientName: 'Maria Souza', principalAmount: 800,
-                dailyInterestRate: 0.006, startDate: loan3Start.toISOString(), status: 'active',
-                notes: 'Empréstimo em atraso (sem pagamentos)', createdBy: adminUid, createdAt: makeTimestamp(loan3Start)
-            }
-        };
+        // ---- Cliente 2 (Maria Souza): 1 quitado + 1 ativo em atraso (sem pagamentos) ----
+        changed = ensureDoc('loans', 'loan-demo-2', {
+            clientId: 'cliente2-demo', clientName: 'Maria Souza', principalAmount: 500,
+            dailyInterestRate: 0.005, startDate: daysAgo(now, 45).toISOString(), status: 'paid',
+            notes: 'Empréstimo já quitado', createdBy: 'admin-demo', createdAt: makeTimestamp(daysAgo(now, 45))
+        }) || changed;
+        changed = ensureDoc('loans/loan-demo-2/payments', 'pay-demo-2a', {
+            amount: Math.round(500 * (1 + 0.005 * 43) * 100) / 100, date: daysAgo(now, 2).toISOString(), type: 'full',
+            registeredBy: 'admin-demo', createdAt: makeTimestamp(daysAgo(now, 2))
+        }) || changed;
+        changed = ensureDoc('loans', 'loan-demo-3', {
+            clientId: 'cliente2-demo', clientName: 'Maria Souza', principalAmount: 800,
+            dailyInterestRate: 0.006, startDate: daysAgo(now, 35).toISOString(), status: 'active',
+            notes: 'Empréstimo em atraso (sem pagamentos)', createdBy: 'admin-demo', createdAt: makeTimestamp(daysAgo(now, 35))
+        }) || changed;
 
-        const pay1Id = genId('pay');
-        const pay1Date = daysAgo(now, 10);
-        store.collections['loans/' + loan1Id + '/payments'] = {
-            [pay1Id]: { amount: 300, date: pay1Date.toISOString(), type: 'partial', registeredBy: adminUid, createdAt: makeTimestamp(pay1Date) }
-        };
+        // ---- Cliente 3 (Pedro Almeida): emprestimo saudavel, 3 pagamentos parciais ----
+        changed = ensureDoc('loans', 'loan-demo-4', {
+            clientId: 'cliente3-demo', clientName: 'Pedro Almeida', principalAmount: 2000,
+            dailyInterestRate: 0.004, startDate: daysAgo(now, 60).toISOString(), status: 'active',
+            notes: 'Cliente pontual, pagamentos frequentes', createdBy: 'admin-demo', createdAt: makeTimestamp(daysAgo(now, 60))
+        }) || changed;
+        changed = ensureDoc('loans/loan-demo-4/payments', 'pay-demo-4a', {
+            amount: 500, date: daysAgo(now, 45).toISOString(), type: 'partial', registeredBy: 'admin-demo', createdAt: makeTimestamp(daysAgo(now, 45))
+        }) || changed;
+        changed = ensureDoc('loans/loan-demo-4/payments', 'pay-demo-4b', {
+            amount: 500, date: daysAgo(now, 30).toISOString(), type: 'partial', registeredBy: 'admin-demo', createdAt: makeTimestamp(daysAgo(now, 30))
+        }) || changed;
+        changed = ensureDoc('loans/loan-demo-4/payments', 'pay-demo-4c', {
+            amount: 400, date: daysAgo(now, 12).toISOString(), type: 'partial', registeredBy: 'admin-demo', createdAt: makeTimestamp(daysAgo(now, 12))
+        }) || changed;
 
-        // Quitacao total do emprestimo 2 (principal + juros simples de 45 dias a 0.5%/dia)
-        const pay2Id = genId('pay');
-        const pay2Date = daysAgo(now, 2);
-        const loan2Total = Math.round(500 * (1 + 0.005 * 43) * 100) / 100;
-        store.collections['loans/' + loan2Id + '/payments'] = {
-            [pay2Id]: { amount: loan2Total, date: pay2Date.toISOString(), type: 'full', registeredBy: adminUid, createdAt: makeTimestamp(pay2Date) }
-        };
+        // ---- Cliente 4 (Ana Costa): emprestimo critico, +90 dias sem pagamento ----
+        changed = ensureDoc('loans', 'loan-demo-5', {
+            clientId: 'cliente4-demo', clientName: 'Ana Costa', principalAmount: 1500,
+            dailyInterestRate: 0.007, startDate: daysAgo(now, 90).toISOString(), status: 'active',
+            notes: 'Cliente sumiu, sem contato há meses', createdBy: 'admin-demo', createdAt: makeTimestamp(daysAgo(now, 90))
+        }) || changed;
 
-        // Propostas de credito enviadas pelo vendedor para o gestor aprovar
-        const proposal1Id = genId('prop');
-        const proposal2Id = genId('prop');
-        const proposal3Id = genId('prop');
-        store.collections.proposals = {
-            [proposal1Id]: {
-                clientName: 'Carlos Prospect', clientCpf: '111.222.333-44', clientPhone: '11977776666',
-                principalAmount: 1200, dailyInterestRate: 0.006, notes: 'Cliente indicado por Maria Souza',
-                status: 'pending', vendedorId: vendedorUid, vendedorName: 'Vendedor Demo',
-                createdAt: makeTimestamp(daysAgo(now, 1))
-            },
-            [proposal2Id]: {
-                clientName: 'Fernanda Lima', clientCpf: '222.333.444-55', clientPhone: '11966665555',
-                principalAmount: 600, dailyInterestRate: 0.005, notes: '',
-                status: 'approved', vendedorId: vendedorUid, vendedorName: 'Vendedor Demo',
-                createdAt: makeTimestamp(daysAgo(now, 8)), approvedBy: adminUid, approvedAt: makeTimestamp(daysAgo(now, 7))
-            },
-            [proposal3Id]: {
-                clientName: 'Roberto Alves', clientCpf: '333.444.555-66', clientPhone: '11955554444',
-                principalAmount: 3000, dailyInterestRate: 0.008, notes: 'Valor solicitado muito alto',
-                status: 'rejected', rejectReason: 'Score de crédito baixo', vendedorId: vendedorUid, vendedorName: 'Vendedor Demo',
-                createdAt: makeTimestamp(daysAgo(now, 12))
-            }
-        };
+        // ---- Cliente 5 (Lucas Ferreira): 1 quitado rapido + 1 novo em dia (recem-criado) ----
+        changed = ensureDoc('loans', 'loan-demo-6', {
+            clientId: 'cliente5-demo', clientName: 'Lucas Ferreira', principalAmount: 300,
+            dailyInterestRate: 0.005, startDate: daysAgo(now, 20).toISOString(), status: 'paid',
+            notes: '', createdBy: 'admin-demo', createdAt: makeTimestamp(daysAgo(now, 20))
+        }) || changed;
+        changed = ensureDoc('loans/loan-demo-6/payments', 'pay-demo-6a', {
+            amount: Math.round(300 * (1 + 0.005 * 18) * 100) / 100, date: daysAgo(now, 2).toISOString(), type: 'full',
+            registeredBy: 'admin-demo', createdAt: makeTimestamp(daysAgo(now, 2))
+        }) || changed;
+        changed = ensureDoc('loans', 'loan-demo-7', {
+            clientId: 'cliente5-demo', clientName: 'Lucas Ferreira', principalAmount: 1200,
+            dailyInterestRate: 0.005, startDate: daysAgo(now, 4).toISOString(), status: 'active',
+            notes: 'Empréstimo novo, ainda em dia', createdBy: 'admin-demo', createdAt: makeTimestamp(daysAgo(now, 4))
+        }) || changed;
 
-        saveStore();
-        console.log('%c[CerraLoan] Modo offline: dados de demonstração criados.', 'color:#16a34a');
-        console.log('[CerraLoan] Login admin: admin@admin.com / admin123');
-        console.log('[CerraLoan] Login cliente 1: cliente@cliente.com / cliente123');
-        console.log('[CerraLoan] Login cliente 2: cliente2@cliente.com / cliente123');
-        console.log('[CerraLoan] Login vendedor: vendedor@vendedor.com / vendedor123');
+        // ---- Propostas de credito enviadas pelo vendedor para o gestor aprovar ----
+        changed = ensureDoc('proposals', 'prop-demo-1', {
+            clientName: 'Carlos Prospect', clientCpf: '111.222.333-44', clientPhone: '11977776666',
+            principalAmount: 1200, dailyInterestRate: 0.006, notes: 'Cliente indicado por Maria Souza',
+            status: 'pending', vendedorId: 'vendedor-demo', vendedorName: 'Vendedor Demo',
+            createdAt: makeTimestamp(daysAgo(now, 1))
+        }) || changed;
+        changed = ensureDoc('proposals', 'prop-demo-2', {
+            clientName: 'Fernanda Lima', clientCpf: '222.333.444-55', clientPhone: '11966665555',
+            principalAmount: 600, dailyInterestRate: 0.005, notes: '',
+            status: 'approved', vendedorId: 'vendedor-demo', vendedorName: 'Vendedor Demo',
+            createdAt: makeTimestamp(daysAgo(now, 8)), approvedBy: 'admin-demo', approvedAt: makeTimestamp(daysAgo(now, 7))
+        }) || changed;
+        changed = ensureDoc('proposals', 'prop-demo-3', {
+            clientName: 'Roberto Alves', clientCpf: '333.444.555-66', clientPhone: '11955554444',
+            principalAmount: 3000, dailyInterestRate: 0.008, notes: 'Valor solicitado muito alto',
+            status: 'rejected', rejectReason: 'Score de crédito baixo', vendedorId: 'vendedor-demo', vendedorName: 'Vendedor Demo',
+            createdAt: makeTimestamp(daysAgo(now, 12))
+        }) || changed;
+        changed = ensureDoc('proposals', 'prop-demo-4', {
+            clientName: 'Juliana Martins', clientCpf: '444.555.666-77', clientPhone: '11944443333',
+            principalAmount: 900, dailyInterestRate: 0.005, notes: 'Primeira vez, sem histórico ainda',
+            status: 'pending', vendedorId: 'vendedor-demo', vendedorName: 'Vendedor Demo',
+            createdAt: makeTimestamp(daysAgo(now, 0))
+        }) || changed;
+        changed = ensureDoc('proposals', 'prop-demo-5', {
+            clientName: 'Marcos Souza', clientCpf: '555.666.777-88', clientPhone: '11933332222',
+            principalAmount: 450, dailyInterestRate: 0.005, notes: '',
+            status: 'approved', vendedorId: 'vendedor-demo', vendedorName: 'Vendedor Demo',
+            createdAt: makeTimestamp(daysAgo(now, 20)), approvedBy: 'admin-demo', approvedAt: makeTimestamp(daysAgo(now, 19))
+        }) || changed;
+
+        if (changed) {
+            saveStore();
+            console.log('%c[CerraLoan] Modo offline: dados de demonstração criados/atualizados.', 'color:#16a34a');
+            console.log('[CerraLoan] Login admin: admin@admin.com / admin123');
+            console.log('[CerraLoan] Login cliente 1: cliente@cliente.com / cliente123');
+            console.log('[CerraLoan] Login cliente 2: cliente2@cliente.com / cliente123');
+            console.log('[CerraLoan] Login cliente 3: cliente3@cliente.com / cliente123');
+            console.log('[CerraLoan] Login cliente 4: cliente4@cliente.com / cliente123');
+            console.log('[CerraLoan] Login cliente 5: cliente5@cliente.com / cliente123');
+            console.log('[CerraLoan] Login vendedor: vendedor@vendedor.com / vendedor123');
+        }
     }
-    seedIfEmpty();
+    ensureDemoData();
 
     console.log('%c[CerraLoan] Executando 100% offline (sem backend Firebase real). Dados salvos no localStorage deste navegador.', 'color:#f59e0b');
 })();

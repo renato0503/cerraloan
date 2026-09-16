@@ -157,6 +157,36 @@ um projeto Firebase na conta `gestor.renatorosa@gmail.com`.
 
 ---
 
+## Sprint 8 — Seed dinâmico com migração automática (mais clientes)
+
+**Problema encontrado:** quem já tinha aberto o app antes (Sprint 5) ficou com os dados
+antigos (1 cliente só) travados no `localStorage` do navegador — o seed antigo só rodava
+em navegador "zerado" (`if (Object.keys(authUsers).length > 0) return;`), então a versão
+mais rica nunca chegava a essas sessões já existentes.
+
+**Feito:**
+- Reescrito o seed de [js/offline-firebase.js](js/offline-firebase.js) para um modelo
+  **idempotente por ID fixo** (`ensureAuthUser`/`ensureDoc`): em toda carga da página, o
+  app verifica cliente a cliente, empréstimo a empréstimo, proposta a proposta — se já
+  existe, não toca; se falta, cria. Isso corrige automaticamente qualquer navegador que
+  já tinha dados de uma versão anterior, sem apagar nada que o usuário tenha criado.
+- Guarda especial para não duplicar o empréstimo do "Cliente Teste" original (que usava
+  ID aleatório antes desta mudança): só cria o empréstimo-base se esse cliente ainda não
+  tiver nenhum empréstimo.
+- Base de demonstração ampliada de 2 para **5 clientes**, com estados variados:
+  - Cliente Teste — ativo, "Atenção" (25 dias, 1 pagamento parcial).
+  - Maria Souza — 1 quitado + 1 "Atrasado" (35 dias, sem pagamentos).
+  - Pedro Almeida (novo) — ativo saudável com 3 pagamentos parciais ao longo do tempo.
+  - Ana Costa (novo) — "Crítico" (90 dias sem nenhum pagamento).
+  - Lucas Ferreira (novo) — 1 quitado rápido + 1 novo em dia (criado há 4 dias).
+- Propostas de vendedor ampliadas de 3 para 5 (2 pendentes, 2 aprovadas, 1 rejeitada).
+- Validado com Playwright simulando explicitamente um navegador "antigo" (dados no
+  formato anterior, com IDs aleatórios) recarregando a página: os dados antigos são
+  preservados e os novos são adicionados sem duplicar nada; comparado lado a lado com um
+  navegador 100% novo — mesmo resultado final (5 clientes, 7 empréstimos, 5 propostas).
+
+---
+
 ## Backlog — o que falta para 100%
 
 ### Prioridade alta

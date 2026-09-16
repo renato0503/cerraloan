@@ -1,0 +1,446 @@
+﻿🏦 Planejamento do PWA de Microcrédito
+
+
+## 1. VISÃO GERAL DA ARQUITETURA
+
+
+```
+┌─────────────────────────────────────────────────┐
+│                   FRONTEND                       │
+│              PWA (HTML/CSS/JS)                    │
+│         Mobile-first + Responsivo                │
+├─────────────────────────────────────────────────┤
+│                 FIREBASE                         │
+│  ┌───────────┐ ┌───────────┐ ┌───────────────┐  │
+│  │   Auth    │ │ Firestore │ │   Hosting     │  │
+│  │ (Login)   │ │ (Banco)   │ │ (Hospedagem)  │  │
+│  └───────────┘ └───────────┘ └───────────────┘  │
+└─────────────────────────────────────────────────┘
+```
+
+
+---
+
+
+## 2. PAPÉIS DE USUÁRIO
+
+
+```
+👤 ADMIN (Credor/Gestor)
+├── Cadastra clientes
+├── Cria empréstimos
+├── Registra pagamentos
+├── Vê dashboard geral
+└── Gerencia tudo
+
+
+👥 CLIENTE (Tomador)
+├── Vê seus empréstimos
+├── Vê saldo devedor atualizado
+├── Simula quitação em qualquer data
+└── Vê histórico de pagamentos
+```
+
+
+---
+
+
+## 3. MODELO DE DADOS (Firestore)
+
+
+```
+📁 Firestore Database
+│
+├── 📂 users (coleção)
+│   └── 📄 {userId}
+│       ├── name: "João Silva"
+│       ├── email: "joao@email.com"
+│       ├── phone: "11999999999"
+│       ├── cpf: "123.456.789-00"
+│       ├── role: "admin" | "client"
+│       ├── createdAt: timestamp
+│       └── createdBy: "adminUserId"
+│
+├── 📂 loans (coleção)
+│   └── 📄 {loanId}
+│       ├── clientId: "userId"
+│       ├── clientName: "João Silva"  (desnormalizado p/ facilitar)
+│       ├── principalAmount: 1000.00  (valor emprestado)
+│       ├── dailyInterestRate: 0.005  (0.5% ao dia)
+│       ├── startDate: timestamp
+│       ├── status: "active" | "paid" | "overdue"
+│       ├── notes: "Observação opcional"
+│       ├── createdAt: timestamp
+│       ├── createdBy: "adminUserId"
+│       │
+│       └── 📂 payments (subcoleção)
+│           └── 📄 {paymentId}
+│               ├── amount: 200.00
+│               ├── date: timestamp
+│               ├── type: "partial" | "full"
+│               ├── registeredBy: "adminUserId"
+│               └── createdAt: timestamp
+│
+└── 📂 settings (coleção - opcional)
+    └── 📄 general
+        ├── defaultDailyRate: 0.005
+        └── companyName: "Minha Empresa"
+```
+
+
+---
+
+
+## 4. LÓGICA DE CÁLCULO DE JUROS (O Coração do Sistema)
+
+
+```
+╔══════════════════════════════════════════════════════╗
+║  JUROS SIMPLES DIÁRIOS SOBRE SALDO REMANESCENTE     ║
+╚══════════════════════════════════════════════════════╝
+
+
+Exemplo prático:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+Empréstimo: R$ 1.000,00
+Taxa diária: 0,5% (0.005)
+Data início: 01/Jan
+
+
+📅 Dia 01-10 (10 dias, sem pagamento):
+   Saldo = 1000 + (1000 × 0.005 × 10) = R$ 1.050,00
+
+
+📅 Dia 10: Cliente paga R$ 300,00
+   Novo saldo = 1050 - 300 = R$ 750,00
+
+
+📅 Dia 10-20 (mais 10 dias):
+   Saldo = 750 + (750 × 0.005 × 10) = R$ 787,50
+
+
+📅 Se quitar no dia 20: paga R$ 787,50
+📅 Se quitar no dia 25: 
+   Saldo = 750 + (750 × 0.005 × 15) = R$ 806,25
+```
+
+
+### Função de Cálculo (pseudocódigo):
+
+
+```javascript
+function calcularSaldo(emprestimo, pagamentos, dataAlvo) {
+    let saldo = emprestimo.principalAmount;
+    let ultimaData = emprestimo.startDate;
+    
+    // Ordena pagamentos por data
+    pagamentos.sort((a, b) => a.date - b.date);
+    
+    // Percorre cada pagamento
+    for (let pgto of pagamentos) {
+        if (pgto.date > dataAlvo) break;
+        
+        // Calcula juros do período anterior
+        let dias = diasEntre(ultimaData, pgto.date);
+        saldo = saldo + (saldo * emprestimo.dailyInterestRate * dias);
+        
+        // Subtrai o pagamento
+        saldo = saldo - pgto.amount;
+        ultimaData = pgto.date;
+    }
+    
+    // Calcula juros do último evento até a data alvo
+    let diasRestantes = diasEntre(ultimaData, dataAlvo);
+    saldo = saldo + (saldo * emprestimo.dailyInterestRate * diasRestantes);
+    
+    return Math.max(saldo, 0); // Nunca negativo
+}
+```
+
+
+---
+
+
+## 5. TELAS DO APLICATIVO
+
+
+```
+🔐 LOGIN (compartilhada)
+│
+├── 👤 ADMIN ─────────────────────────────
+│   │
+│   ├── 📊 DASHBOARD
+│   │   ├── Total emprestado ativo
+│   │   ├── Total a receber hoje
+│   │   ├── Qtd empréstimos ativos
+│   │   └── Lista rápida (últimos empréstimos)
+│   │
+│   ├── 👥 CLIENTES
+│   │   ├── Lista de clientes
+│   │   ├── Busca por nome/CPF
+│   │   ├── [+] Novo Cliente
+│   │   └── → Detalhe do Cliente
+│   │       ├── Dados pessoais
+│   │       ├── Lista de empréstimos
+│   │       └── Resumo financeiro
+│   │
+│   ├── 💰 EMPRÉSTIMOS
+│   │   ├── Lista todos (filtro: ativos/quitados)
+│   │   ├── [+] Novo Empréstimo
+│   │   │   ├── Seleciona cliente
+│   │   │   ├── Valor
+│   │   │   ├── Taxa diária (%)
+│   │   │   ├── Data início
+│   │   │   └── Observações
+│   │   │
+│   │   └── → Detalhe do Empréstimo
+│   │       ├── Saldo devedor HOJE
+│   │       ├── Simulador de quitação
+│   │       ├── Histórico de pagamentos
+│   │       └── [+] Registrar Pagamento
+│   │
+│   └── ⚙️ CONFIGURAÇÕES
+│       ├── Taxa padrão
+│       └── Dados da empresa
+│
+└── 👥 CLIENTE ───────────────────────────
+    │
+    ├── 📋 MEUS EMPRÉSTIMOS
+    │   ├── Qtd total de empréstimos
+    │   ├── Saldo devedor total
+    │   └── Lista de empréstimos
+    │
+    └── → DETALHE DO EMPRÉSTIMO
+        ├── Valor original
+        ├── Data do empréstimo
+        ├── Taxa diária
+        ├── 🔴 SALDO HOJE: R$ X.XXX,XX
+        ├── 📅 SIMULADOR: "Quanto pago em [data]?"
+        └── Histórico de pagamentos
+```
+
+
+---
+
+
+## 6. LAYOUT (Wireframe simplificado)
+
+
+### Mobile (principal):
+```
+┌──────────────────────┐
+│  🏦 MicroCred        │
+│  ══════════════════  │
+│                      │
+│  ┌──────────────────┐│
+│  │ Saldo Total      ││
+│  │ R$ 15.430,00     ││
+│  └──────────────────┘│
+│                      │
+│  ┌────────┐┌────────┐│
+│  │Ativos  ││Clientes││
+│  │  12    ││  8     ││
+│  └────────┘└────────┘│
+│                      │
+│  Empréstimos Recentes│
+│  ────────────────────│
+│  👤 João    R$1.050  │
+│  👤 Maria   R$2.300  │
+│  👤 Pedro   R$  800  │
+│                      │
+│  [+ Novo Empréstimo] │
+│                      │
+├──────────────────────┤
+│ 🏠  💰  👥  ⚙️      │
+└──────────────────────┘
+```
+
+
+### PC (centralizado, max-width: 480px):
+```
+┌─────────────────────────────────────────────┐
+│           ┌──────────────────────┐          │
+│           │                      │          │
+│           │  (mesmo layout do    │          │
+│           │   mobile, centrado)  │          │
+│           │                      │          │
+│           └──────────────────────┘          │
+└─────────────────────────────────────────────┘
+```
+
+
+---
+
+
+## 7. SIMULADOR DE QUITAÇÃO (Feature Principal do Cliente)
+
+
+```
+┌──────────────────────────┐
+│  💰 Simulador de Quitação │
+│  ─────────────────────── │
+│                          │
+│  Empréstimo: R$ 1.000   │
+│  Taxa: 0,5% ao dia      │
+│  Início: 01/01/2025     │
+│                          │
+│  ┌──────────────────────┐│
+│  │ HOJE (15/01/2025)    ││
+│  │ Saldo: R$ 1.050,00   ││
+│  └──────────────────────┘│
+│                          │
+│  📅 Simular outra data:  │
+│  ┌──────────────────────┐│
+│  │ 20/01/2025       📅  ││
+│  └──────────────────────┘│
+│  ┌──────────────────────┐│
+│  │ Valor em 20/01:      ││
+│  │ R$ 1.075,00          ││
+│  └──────────────────────┘│
+│                          │
+│  ⚡ Quanto mais cedo     │
+│     pagar, menos juros!  │
+└──────────────────────────┘
+```
+
+
+---
+
+
+## 8. ESTRUTURA DE ARQUIVOS DO PROJETO
+
+
+```
+📁 microcred-pwa/
+│
+├── 📄 index.html          (shell do app)
+├── 📄 manifest.json       (config PWA)
+├── 📄 sw.js               (service worker)
+├── 📄 firebase-config.js  (config Firebase)
+│
+├── 📁 css/
+│   └── 📄 style.css       (um único CSS)
+│
+├── 📁 js/
+│   ├── 📄 app.js          (roteamento/navegação)
+│   ├── 📄 auth.js         (login/logout)
+│   ├── 📄 db.js           (funções Firestore)
+│   ├── 📄 calc.js         (cálculos de juros)
+│   └── 📄 ui.js           (renderização de telas)
+│
+├── 📁 pages/              (templates HTML)
+│   ├── 📄 login.html
+│   ├── 📄 dashboard.html
+│   ├── 📄 clients.html
+│   ├── 📄 loans.html
+│   ├── 📄 loan-detail.html
+│   └── 📄 simulator.html
+│
+└── 📁 icons/
+    ├── 📄 icon-192.png
+    └── 📄 icon-512.png
+```
+
+
+---
+
+
+## 9. REGRAS DE SEGURANÇA (Firestore)
+
+
+```javascript
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Admins podem tudo
+    function isAdmin() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // Users
+    match /users/{userId} {
+      allow read: if request.auth.uid == userId || isAdmin();
+      allow write: if isAdmin();
+    }
+    
+    // Loans
+    match /loans/{loanId} {
+      allow read: if resource.data.clientId == request.auth.uid || isAdmin();
+      allow write: if isAdmin();
+      
+      // Payments
+      match /payments/{paymentId} {
+        allow read: if get(/databases/$(database)/documents/loans/$(loanId)).data.clientId == request.auth.uid || isAdmin();
+        allow write: if isAdmin();
+      }
+    }
+  }
+}
+```
+
+
+---
+
+
+## 10. FLUXO DE OPERAÇÃO
+
+
+```
+CRIAÇÃO DO EMPRÉSTIMO:
+Admin cadastra cliente → Admin cria empréstimo → Sistema registra
+
+
+VIDA DO EMPRÉSTIMO:
+Juros acumulam automaticamente (cálculo em tempo real, sem cron job!)
+↓
+Cliente acessa → Vê saldo atualizado → Simula datas
+↓
+Cliente paga → Admin registra pagamento → Saldo recalculado
+↓
+Saldo = 0 → Status muda para "paid" ✅
+
+
+⚡ PONTO CHAVE: Não precisamos de Cloud Functions!
+   Os juros são calculados NO MOMENTO DA CONSULTA,
+   não armazenados. Isso simplifica TUDO.
+```
+
+
+---
+
+
+## 11. CUSTOS FIREBASE (Plano Gratuito Spark)
+
+
+```
+✅ Auth:        Gratuito (até 50k usuários/mês)
+✅ Firestore:   50k leituras/dia, 20k escritas/dia
+✅ Hosting:     10GB armazenamento, 360MB/dia
+✅ Total:       R$ 0,00 para começar!
+
+
+💡 Para um negócio pequeno de microcrédito
+   (até ~100 clientes), o plano gratuito 
+   provavelmente será suficiente.
+```
+
+
+---
+
+
+## PRÓXIMOS PASSOS
+
+
+```
+Fase 1: 🔐 Setup Firebase + Auth + Login
+Fase 2: 👥 CRUD de Clientes
+Fase 3: 💰 CRUD de Empréstimos + Cálculo de Juros
+Fase 4: 💳 Registro de Pagamentos
+Fase 5: 📊 Dashboard Admin
+Fase 6: 👤 Portal do Cliente + Simulador
+Fase 7: 📱 PWA (manifest + service worker)
+Fase 8: 🚀 Deploy no Firebase Hosting
+```

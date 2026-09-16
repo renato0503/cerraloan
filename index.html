@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#16213e">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="CerraLoan">
+    <meta name="description" content="Gestao de Microcredito">
+    <title>CerraLoan</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
+</head>
+<body>
+    <div id="app"></div>
+    <!-- Nav bar do ADMIN (4 itens) -->
+    <nav id="admin-nav" class="bottom-nav" style="display:none;">
+        <a href="#dashboard" class="nav-item" data-route="dashboard">
+            <span class="nav-icon">🏠</span>
+            <span class="nav-label">Início</span>
+        </a>
+        <a href="#loans" class="nav-item" data-route="loans">
+            <span class="nav-icon">💰</span>
+            <span class="nav-label">Empréstimos</span>
+        </a>
+        <a href="#clients" class="nav-item" data-route="clients">
+            <span class="nav-icon">👥</span>
+            <span class="nav-label">Clientes</span>
+        </a>
+        <a href="#settings" class="nav-item" data-route="settings">
+            <span class="nav-icon">⚙️</span>
+            <span class="nav-label">Config</span>
+        </a>
+    </nav>
+    
+    <!-- Nav bar do CLIENTE (3 itens) -->
+    <nav id="client-nav" class="bottom-nav" style="display:none;">
+        <a href="#my-loans" class="nav-item" data-route="my-loans">
+            <span class="nav-icon">📋</span>
+            <span class="nav-label">Meus Empréstimos</span>
+        </a>
+        <a href="#request-loan" class="nav-item" data-route="request-loan">
+            <span class="nav-icon">🆕</span>
+            <span class="nav-label">Solicitar</span>
+        </a>
+        <a href="#profile" class="nav-item" data-route="profile">
+            <span class="nav-icon">👤</span>
+            <span class="nav-label">Perfil</span>
+        </a>
+    </nav>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .then(reg => console.log('SW registrado:', reg.scope))
+                    .catch(err => console.error('SW erro:', err));
+            });
+        }
+        
+        document.addEventListener('click', function(e) {
+            if (e.target.closest('#logout-btn')) {
+                e.preventDefault();
+                if(typeof logout === 'function') logout();
+            }
+        });
+
+        window.addEventListener('online', () => {
+            if (window.showToast) window.showToast('Conexao restaurada!', 'success');
+        });
+        
+        window.addEventListener('offline', () => {
+            if (window.showToast) window.showToast('Sem conexao com a internet', 'error');
+        });
+
+        window.addEventListener('unhandledrejection', (event) => {
+            console.error('Erro:', event.reason);
+            if (window.showToast) window.showToast('Ops! Algo deu errado. Tente novamente.', 'error');
+        });
+    </script>
+    
+    <!-- ==================== -->
+    <!-- SCRIPTS - NÃO MUDE A ORDEM -->
+    <!-- ==================== -->
+    
+    <!-- 1. Backend local (offline, 100% sem depender de projeto Firebase real) -->
+    <!-- Para voltar a usar o Firebase real, troque esta linha pelos 3 scripts do CDN do Firebase compat -->
+    <script src="js/offline-firebase.js"></script>
+    
+    <!-- Gráficos, PDF e Excel -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    
+    <!-- 2. Firebase Config (DEVE vir logo após os CDNs) -->
+    <script src="firebase-config.js"></script>
+    
+    <!-- 3. Módulos do App (nesta ordem) -->
+    <script src="js/calc.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/db.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/reports.js"></script>
+    <script src="js/views.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

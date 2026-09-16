@@ -1,0 +1,17 @@
+{
+  "name": "microcred-pwa",
+  "version": "1.0.0",
+  "description": "",
+  "main": "firebase-config.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "firebase-admin": "^13.7.0",
+    "sharp": "^0.34.5"
+  }
+}

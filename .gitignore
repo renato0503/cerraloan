@@ -1,0 +1,17 @@
+# Credenciais e dados sensiveis - NUNCA versionar
+service-account-key.json
+auth-export.json
+.firebaserc
+.firebase/
+
+# Dependencias
+node_modules/
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# Ferramentas de agentes/IDE locais
+.agent/
+.opencode/
+.kilo/

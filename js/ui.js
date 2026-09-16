@@ -2,10 +2,10 @@ function renderLogin() {
     return `
         <div class="page form-page">
             <div class="login-container">
-                <div class="login-emoji">🏦</div>
+                <div class="login-emoji">${icon('bank')}</div>
                 <h1 class="login-title">CerraLoan</h1>
                 <p class="login-subtitle">Gestão de Microcrédito</p>
-                
+               
                 <form id="login-form">
                     <div class="input-group">
                         <input type="email" id="email" placeholder="seu@email.com" required>
@@ -16,7 +16,7 @@ function renderLogin() {
                     <div id="login-error" class="login-error" style="display: none;"></div>
                     <button type="submit" class="btn btn-primary btn-block" id="login-btn">Entrar</button>
                 </form>
-                
+               
                 <div id="login-spinner" class="login-spinner" style="display: none;">
                     <div class="spinner"></div>
                 </div>
@@ -32,7 +32,7 @@ function renderDashboard() {
                 <h1>Dashboard</h1>
                 <p class="subtitle">Visão geral do seu negócio</p>
             </div>
-            
+           
             <div class="stat-grid">
                 <div class="stat-card">
                     <div class="stat-value">R$ 12.500</div>
@@ -51,27 +51,27 @@ function renderDashboard() {
                     <div class="stat-label">Pendentes</div>
                 </div>
             </div>
-            
+           
             <h2 class="mt-3 mb-2" style="font-size: 18px;">Ações Rápidas</h2>
             <div class="dashboard-grid">
                 <a href="#clients" class="dashboard-card">
-                    <div class="dashboard-card-icon">👤</div>
+                    <div class="dashboard-card-icon">${icon('user')}</div>
                     <div class="dashboard-card-label">Novo Cliente</div>
                 </a>
                 <a href="#loans" class="dashboard-card">
-                    <div class="dashboard-card-icon">💸</div>
+                    <div class="dashboard-card-icon">${icon('banknote')}</div>
                     <div class="dashboard-card-label">Novo Empréstimo</div>
                 </a>
                 <a href="#simulator" class="dashboard-card">
-                    <div class="dashboard-card-icon">🧮</div>
+                    <div class="dashboard-card-icon">${icon('calculator')}</div>
                     <div class="dashboard-card-label">Simular</div>
                 </a>
                 <a href="#loans" class="dashboard-card">
-                    <div class="dashboard-card-icon">📊</div>
+                    <div class="dashboard-card-icon">${icon('bar-chart')}</div>
                     <div class="dashboard-card-label">Relatórios</div>
                 </a>
             </div>
-            
+           
             <h2 class="mt-3 mb-2" style="font-size: 18px;">Empréstimos Recentes</h2>
             <div class="card">
                 <div class="list-item" style="box-shadow: none; padding: 8px 0;">
@@ -102,13 +102,13 @@ function renderClients() {
                 <h1>Clientes</h1>
                 <p class="subtitle">Gerencie seus clientes</p>
             </div>
-            
+           
             <div class="card">
                 <div class="input-group" style="margin-bottom: 0;">
                     <input type="text" placeholder="Buscar cliente..." id="search-client">
                 </div>
             </div>
-            
+           
             <div id="clients-list">
                 <a href="#" class="list-item">
                     <div class="list-item-avatar">JS</div>
@@ -132,7 +132,7 @@ function renderClients() {
                     </div>
                 </a>
             </div>
-            
+           
             <button class="btn btn-primary btn-block mt-3" id="add-client-btn">+ Novo Cliente</button>
         </div>
     `;
@@ -145,13 +145,13 @@ function renderLoans() {
                 <h1>Empréstimos</h1>
                 <p class="subtitle">Histórico de empréstimos</p>
             </div>
-            
+           
             <div class="card">
                 <div class="input-group" style="margin-bottom: 0;">
                     <input type="text" placeholder="Buscar empréstimo..." id="search-loan">
                 </div>
             </div>
-            
+           
             <div id="loans-list">
                 <a href="#loan-detail" class="list-item">
                     <div class="list-item-avatar">JS</div>
@@ -178,7 +178,7 @@ function renderLoans() {
                     <span class="list-item-badge badge-success">Quitado</span>
                 </a>
             </div>
-            
+           
             <button class="btn btn-primary btn-block mt-3" id="new-loan-btn">+ Novo Empréstimo</button>
         </div>
     `;
@@ -191,7 +191,7 @@ function renderLoanDetail() {
                 <h1>Detalhes do Empréstimo</h1>
                 <p class="subtitle">Informações completas</p>
             </div>
-            
+           
             <div class="card">
                 <div class="card-header">
                     <span class="card-title">Dados do Cliente</span>
@@ -204,7 +204,7 @@ function renderLoanDetail() {
                     </div>
                 </div>
             </div>
-            
+           
             <div class="card">
                 <div class="card-header">
                     <span class="card-title">Dados do Empréstimo</span>
@@ -230,14 +230,14 @@ function renderLoanDetail() {
                     <span class="value" style="color: var(--success);">R$ 308,33</span>
                 </div>
             </div>
-            
+           
             <div class="card">
                 <div class="card-header">
                     <span class="card-title">Status</span>
                 </div>
                 <span class="list-item-badge badge-success" style="font-size: 14px; padding: 8px 16px;">Em Dia</span>
             </div>
-            
+           
             <div style="display: flex; gap: 12px; margin-top: 20px;">
                 <button class="btn btn-outline btn-block">Editar</button>
                 <button class="btn btn-primary btn-block">Receber Parcela</button>
@@ -253,7 +253,7 @@ function renderSimulator() {
                 <h1>Simulador</h1>
                 <p class="subtitle">Calcule o empréstimo</p>
             </div>
-            
+           
             <form id="simulator-form" style="padding: 0 16px;">
                 <div class="card">
                     <div class="input-group">
@@ -278,9 +278,9 @@ function renderSimulator() {
                         </select>
                     </div>
                 </div>
-                
+               
                 <button type="submit" class="btn btn-primary btn-block">Calcular</button>
-                
+               
                 <div id="simulator-result" style="display: none;">
                     <div class="simulator-result">
                         <div class="label">Valor Total a Pagar</div>
@@ -307,23 +307,23 @@ function renderSimulator() {
 function initSimulator() {
     const form = document.getElementById('simulator-form');
     if (!form) return;
-    
+   
     form.addEventListener('submit', (e) => {
         e.preventDefault();
-        
+       
         const amount = parseFloat(document.getElementById('sim-amount').value) || 1000;
         const rate = parseFloat(document.getElementById('sim-rate').value) || 5;
         const installments = parseInt(document.getElementById('sim-installments').value) || 6;
-        
+       
         const total = amount * (1 + (rate / 100) * installments);
         const monthly = total / installments;
         const interest = total - amount;
-        
+       
         document.getElementById('result-total').textContent = `R$ ${total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
         document.getElementById('result-monthly').textContent = `R$ ${monthly.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
         document.getElementById('detail-principal').textContent = `R$ ${amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
         document.getElementById('detail-interest').textContent = `R$ ${interest.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
-        
+       
         document.getElementById('simulator-result').style.display = 'block';
     });
 }
@@ -333,20 +333,20 @@ window.initSimulator = initSimulator;
 async function initLogin() {
     const form = document.getElementById('login-form');
     if (!form) return;
-    
+   
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
-        
+       
         const email = document.getElementById('email').value;
         const password = document.getElementById('password').value;
         const errorDiv = document.getElementById('login-error');
         const spinner = document.getElementById('login-spinner');
         const btn = document.getElementById('login-btn');
-        
+       
         errorDiv.style.display = 'none';
         spinner.style.display = 'block';
         btn.disabled = true;
-        
+       
         try {
             await login(email, password);
         } catch (error) {
@@ -395,10 +395,10 @@ function formatPhone(phone) {
     return v;
 }
 
-function emptyState(emoji, title, subtitle, actionText, actionHash) {
+function emptyState(iconName, title, subtitle, actionText, actionHash) {
     return `
         <div class="empty-state">
-            <div class="empty-emoji">${emoji}</div>
+            <div class="empty-emoji">${icon(iconName, { size: '3rem' })}</div>
             <h3>${title}</h3>
             <p>${subtitle}</p>
             ${actionText && actionHash ? `<a href="${actionHash}" class="btn btn-accent">${actionText}</a>` : ''}
@@ -410,9 +410,9 @@ window.emptyState = emptyState;
 
 function statusBadge(status) {
     const badges = {
-        'active': '<span class="badge badge-active">🟢 Ativo</span>',
-        'paid': '<span class="badge badge-paid">✅ Quitado</span>',
-        'overdue': '<span class="badge badge-overdue">🔴 Atrasado</span>'
+        'active': `<span class="badge badge-active"><span class="status-dot" style="color:var(--success);"></span> Ativo</span>`,
+        'paid': `<span class="badge badge-paid">${icon('check-circle')} Quitado</span>`,
+        'overdue': `<span class="badge badge-overdue"><span class="status-dot" style="color:var(--danger);"></span> Atrasado</span>`
     };
     return badges[status] || '<span class="badge">' + status + '</span>';
 }

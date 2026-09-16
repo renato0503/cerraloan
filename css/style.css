@@ -4,6 +4,40 @@
     box-sizing: border-box;
 }
 
+.icon {
+    display: inline-block;
+    vertical-align: -0.15em;
+    flex-shrink: 0;
+    margin-right: 0.3em;
+}
+
+.icon-lg,
+.icon-xl,
+.nav-icon .icon,
+.empty-emoji .icon {
+    margin-right: 0;
+}
+
+.icon-lg {
+    width: 2.5rem;
+    height: 2.5rem;
+}
+
+.icon-xl {
+    width: 3.5rem;
+    height: 3.5rem;
+}
+
+.status-dot {
+    display: inline-block;
+    width: 0.55em;
+    height: 0.55em;
+    border-radius: 50%;
+    background: currentColor;
+    vertical-align: 0.02em;
+    flex-shrink: 0;
+}
+
 :root {
     --primary: #16213e;
     --secondary: #0f3460;
@@ -314,6 +348,13 @@ html, body {
 .empty-state-icon {
     font-size: 48px;
     margin-bottom: 16px;
+}
+
+.empty-emoji {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 16px;
+    color: var(--text-light);
 }
 
 .empty-state-text {

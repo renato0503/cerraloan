@@ -213,7 +213,7 @@ if (typeof auth !== 'undefined' && typeof db !== 'undefined') {
                     location.hash = '#vendedor-dashboard';
                 }
             } else {
-                console.error('❌ Role não encontrada para:', user.uid);
+                console.error('Role não encontrada para:', user.uid);
                 if(typeof showToast === 'function') showToast('Erro: perfil não configurado', 'error');
                 if(typeof hideLoading === 'function') hideLoading();
                 await auth.signOut();
@@ -227,10 +227,10 @@ if (typeof auth !== 'undefined' && typeof db !== 'undefined') {
         render();
     });
 } else {
-    console.error('❌ Firebase NÃO inicializado! Verifique firebase-config.js');
+    console.error('Firebase NÃO inicializado! Verifique firebase-config.js');
     document.getElementById('app').innerHTML = `
         <div style="text-align:center; padding:40px; color:red;">
-            <h2>❌ Erro de Inicialização</h2>
+            <h2>${icon('x-circle')} Erro de Inicialização</h2>
             <p>O Firebase não foi carregado corretamente.</p>
             <p>Verifique o console para mais detalhes.</p>
         </div>

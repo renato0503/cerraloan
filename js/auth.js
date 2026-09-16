@@ -3,7 +3,7 @@ console.log('auth.js carregado. auth disponível:', typeof auth !== 'undefined')
 
 // Se auth não existir, algo está errado com a ordem dos scripts
 if (typeof auth === 'undefined') {
-    console.error('❌ ERRO CRÍTICO: variável auth não está definida!');
+    console.error('ERRO CRÍTICO: variável auth não está definida!');
     console.error('Verifique a ordem dos scripts no index.html');
     console.error('firebase-config.js DEVE carregar ANTES de auth.js');
 }
@@ -67,7 +67,7 @@ async function getUserRole(uid) {
             console.log('Role encontrada:', role);
             return role;
         } else {
-            console.error('❌ Documento users/' + uid + ' NÃO EXISTE no Firestore!');
+            console.error('Documento users/' + uid + ' NÃO EXISTE no Firestore!');
             return null;
         }
     } catch (error) {

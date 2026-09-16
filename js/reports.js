@@ -118,7 +118,7 @@ async function gerarRelatorioPDF() {
             formatarMoeda(l.principalAmount),
             (l.dailyInterestRate * 100).toFixed(1) + '%',
             l.status === 'active' ? formatarMoeda(l.saldoHoje) : 'QUITADO',
-            l.status === 'active' ? '🟢 Ativo' : '✅ Quitado'
+            l.status === 'active' ? 'Ativo' : 'Quitado'
         ]);
         
         doc.autoTable({
@@ -132,7 +132,7 @@ async function gerarRelatorioPDF() {
         
         doc.save(`relatorio_cerraloan_${hoje.toISOString().split('T')[0]}.pdf`);
         if(window.hideLoading) hideLoading();
-        if(window.showToast) showToast('Relatório PDF gerado! ✅', 'success');
+        if(window.showToast) showToast('Relatório PDF gerado!', 'success');
         
     } catch(error) {
         if(window.hideLoading) hideLoading();
@@ -192,7 +192,7 @@ async function exportarExcel() {
         XLSX.writeFile(wb, `cerraloan_emprestimos_${hoje.toISOString().split('T')[0]}.xlsx`);
         
         if(window.hideLoading) hideLoading();
-        if(window.showToast) showToast('Excel exportado! ✅', 'success');
+        if(window.showToast) showToast('Excel exportado!', 'success');
         
     } catch(error) {
         if(window.hideLoading) hideLoading();

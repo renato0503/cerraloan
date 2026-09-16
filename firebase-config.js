@@ -14,9 +14,9 @@ const auth = firebase.auth();
 const db = firebase.firestore();
 
 // Debug: confirmar inicialização
-console.log('✅ Firebase inicializado');
-console.log('✅ Auth disponível:', typeof auth !== 'undefined');
-console.log('✅ Firestore disponível:', typeof db !== 'undefined');
+console.log('Firebase inicializado');
+console.log('Auth disponível:', typeof auth !== 'undefined');
+console.log('Firestore disponível:', typeof db !== 'undefined');
 
 window.firebase = firebase;
 window.auth = auth;

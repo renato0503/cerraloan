@@ -123,6 +123,40 @@ um projeto Firebase na conta `gestor.renatorosa@gmail.com`.
 
 ---
 
+## Sprint 7 — Ícones SVG no lugar de emojis
+
+**Feito:**
+- Criado [js/icons.js](js/icons.js): sistema próprio de ícones SVG inline (estilo
+  outline, grade 24×24, `stroke="currentColor"`), sem depender de nenhuma fonte de ícone
+  ou CDN externo — mantém o app 100% offline. Função global `icon(nome, opções)` retorna
+  o `<svg>` já formatado, herdando cor e tamanho do texto ao redor (`1em` por padrão).
+- Substituídos os ~190 emojis usados na interface (nav mobile/desktop, cabeçalhos,
+  botões, badges de status, cartões de estatística, estados vazios, tela de perfil,
+  configurações) por chamadas a `icon('nome')` em `js/views.js`, `js/ui.js`, `js/app.js`
+  e diretamente em `index.html` (nav estática).
+- Emoji removido (sem substituto visual) nos lugares onde SVG não pode renderizar:
+  - Mensagens de `showToast()`/`alert()` (usam `textContent`, não `innerHTML`).
+  - Texto da mensagem de cobrança via WhatsApp (`encodeURIComponent(...)`, texto puro
+    enviado a um app externo).
+  - Células de tabela do relatório em PDF/Excel (`js/reports.js`, texto puro via
+    `jsPDF`/`SheetJS`).
+  - `console.log`/`console.error` (diagnóstico de desenvolvedor, não é UI).
+- Indicadores coloridos (🟢/🔴/🟡/🟠 de status) trocados por um `<span class="status-dot">`
+  (círculo preenchido via `currentColor`) com a cor semântica certa
+  (`var(--success)`/`var(--danger)`), em vez de emoji.
+- Ajustes finos de CSS: `.icon` com `margin-right` automático quando seguido de texto,
+  zerado em ícones isolados (`.nav-icon`, `.empty-emoji`, `.icon-lg`/`.icon-xl`); função
+  `emptyState()` (`js/ui.js`) passou a receber um nome de ícone em vez de um emoji.
+- Corrigido de brinde: botão "← Voltar" quebrando linha em telas estreitas na tela de
+  propostas (fonte grande + texto "Voltar" competindo por espaço com o cabeçalho).
+- Validado com Playwright (mobile e desktop, claro e escuro): os 3 papéis completos,
+  aprovação/rejeição de proposta, troca de tema — **0 erros de console**, nenhum emoji
+  restante em nenhum arquivo de UI (`js/*.js`, `index.html`) fora dos contextos citados
+  acima (console/relatórios/WhatsApp), confirmado por varredura automatizada do
+  repositório inteiro.
+
+---
+
 ## Backlog — o que falta para 100%
 
 ### Prioridade alta

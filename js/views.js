@@ -8,7 +8,7 @@ window.loadLoginPage = function() {
     appDiv.innerHTML = `
         <div class="login-container">
             <div class="login-header">
-                <div class="logo">🏦</div>
+                <div class="logo">${icon('bank')}</div>
                 <h1>CerraLoan</h1>
             </div>
             <div class="card">
@@ -30,15 +30,15 @@ window.loadLoginPage = function() {
 
 // ===== HELPER: BADGES OTIMIZADOS =====
 window.getLoanStatusDisplay = function(loan) {
-    if (loan.status === 'paid') return '<span class="list-item-badge badge-paid" style="background:rgba(0,184,148,0.15);color:var(--success);">✅ Quitado</span>';
-    
+    if (loan.status === 'paid') return `<span class="list-item-badge badge-paid" style="background:rgba(0,184,148,0.15);color:var(--success);">${icon('check-circle')} Quitado</span>`;
+
     const startDate = loan.startDate?.toDate ? loan.startDate.toDate() : new Date(loan.startDate);
     const dias = diasEntre(startDate, new Date());
-    
-    if (dias > 60) return '<span class="list-item-badge badge-overdue" style="background:rgba(214,48,49,0.15);color:var(--danger);">🔴 Crítico</span>';
-    if (dias > 30) return '<span class="list-item-badge badge-overdue" style="background:rgba(214,48,49,0.15);color:var(--danger);">🟠 Atrasado</span>';
-    if (dias > 15) return '<span class="list-item-badge badge-attention">🟡 Atenção</span>';
-    return '<span class="list-item-badge badge-active" style="background:rgba(0,184,148,0.15);color:var(--success);">🟢 Ativo</span>';
+
+    if (dias > 60) return `<span class="list-item-badge badge-overdue" style="background:rgba(214,48,49,0.15);color:var(--danger);">${icon('alert-triangle')} Crítico</span>`;
+    if (dias > 30) return `<span class="list-item-badge badge-overdue" style="background:rgba(214,48,49,0.15);color:var(--danger);"><span class="status-dot"></span> Atrasado</span>`;
+    if (dias > 15) return `<span class="list-item-badge badge-attention"><span class="status-dot"></span> Atenção</span>`;
+    return `<span class="list-item-badge badge-active" style="background:rgba(0,184,148,0.15);color:var(--success);"><span class="status-dot"></span> Ativo</span>`;
 };
 
 // ===== ADMIN VIEWS =====
@@ -46,11 +46,11 @@ window.getLoanStatusDisplay = function(loan) {
 window.loadDashboard = async function() {
     const appDiv = document.getElementById('app');
     try {
-        appDiv.innerHTML = `<div class="page-header"><h1>🏦 CerraLoan</h1><p>Bem-vindo, carregando...</p></div><div class="card skeleton-card" style="height:120px;margin:16px 0;"></div>`;
-        
+        appDiv.innerHTML = `<div class="page-header"><h1>${icon('bank')} CerraLoan</h1><p>Bem-vindo, carregando...</p></div><div class="card skeleton-card" style="height:120px;margin:16px 0;"></div>`;
+       
         const user = window.auth.currentUser;
         if (!user) { location.hash = '#login'; return; }
-        
+       
         const userDoc = await window.db.collection('users').doc(user.uid).get();
         const userName = userDoc.exists ? userDoc.data().name : 'Admin';
         const stats = await getDashboardStats();
@@ -58,37 +58,37 @@ window.loadDashboard = async function() {
 
         appDiv.innerHTML = `
             <div class="page-header" style="display:flex;justify-content:space-between;align-items:center;">
-                <div><h1>🏦 CerraLoan</h1><p>Olá, ${userName}! 👋</p></div>
-                <button onclick="handleLogout()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;" title="Sair">🚪</button>
+                <div><h1>${icon('bank')} CerraLoan</h1><p>Olá, ${userName}! </p></div>
+                <button onclick="handleLogout()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;" title="Sair">${icon('log-out')}</button>
             </div>
-            
+           
             <div class="balance-card">
-                <div class="label">💰 Saldo Devedor Total Ativo</div>
+                <div class="label">${icon('wallet')} Saldo Devedor Total Ativo</div>
                 <div class="amount">${formatarMoeda(stats.totalActiveBalance || 0)}</div>
             </div>
-            
+           
             <div class="stats-grid" style="margin-top:16px;">
                 <div class="stat-card">
                     <div class="stat-value">${stats.activeLoans || 0}</div>
-                    <div class="stat-label">📋 Empréstimos Ativos</div>
+                    <div class="stat-label">${icon('clipboard')} Empréstimos Ativos</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-value">${stats.totalClients || 0}</div>
-                    <div class="stat-label">👥 Clientes</div>
+                    <div class="stat-label">${icon('users')} Clientes</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-value">${stats.paidLoans || 0}</div>
-                    <div class="stat-label">✅ Quitados</div>
+                    <div class="stat-label">${icon('check-circle')} Quitados</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-value">${formatarMoeda(stats.totalLent || 0)}</div>
-                    <div class="stat-label">💵 Total Emprestado</div>
+                    <div class="stat-label">${icon('banknote')} Total Emprestado</div>
                 </div>
             </div>
-            
+           
             <!-- GRÁFICOS (Chart.js) -->
             <div style="margin:24px 0;">
-                <h3>📊 Visão Geral</h3>
+                <h3>${icon('bar-chart')} Visão Geral</h3>
                 <div class="card" style="margin:12px 0;padding:16px;">
                     <h4 style="text-align:center;">Empréstimos por Status</h4>
                     <div style="max-width:250px;margin:0 auto;">
@@ -111,21 +111,21 @@ window.loadDashboard = async function() {
                     return '';
                 })()}
             </div>
-            
+           
             <div style="margin-top:24px;">
                 <h3>Empréstimos Recentes</h3>
-                
+               
                 ${(() => {
                     const alertLoans = (stats.recentLoans || []).filter(l => {
                         if (l.status !== 'active') return false;
                         const startDate = l.startDate?.toDate ? l.startDate.toDate() : new Date(l.startDate);
                         return diasEntre(startDate, new Date()) > 30;
                     });
-                    
+                   
                     if (alertLoans.length > 0) {
                         return `
                             <div class="card" style="margin:16px 0;padding:16px;background:linear-gradient(135deg,#f8d7da,#f5c6cb);border:none;">
-                                <h4 style="color:#721c24;margin:0 0 8px;">⚠️ Atenção! ${alertLoans.length} empréstimo(s) com mais de 30 dias</h4>
+                                <h4 style="color:#721c24;margin:0 0 8px;">${icon('alert-triangle')} Atenção! ${alertLoans.length} empréstimo(s) com mais de 30 dias</h4>
                                 ${alertLoans.map(l => `
                                     <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(0,0,0,0.1);font-size:0.85rem;">
                                         <span style="color:#721c24;">${l.clientName}</span>
@@ -137,7 +137,7 @@ window.loadDashboard = async function() {
                     }
                     return '';
                 })()}
-                
+               
                 <div id="recent-loans">
                     ${stats.recentLoans && stats.recentLoans.length > 0 
                         ? stats.recentLoans.map(loan => `
@@ -145,25 +145,25 @@ window.loadDashboard = async function() {
                                  onclick="location.hash='#loan-detail?id=${loan.id}'">
                                 <div style="display:flex;justify-content:space-between;align-items:center;">
                                     <div>
-                                        <strong>👤 ${loan.clientName}</strong><br>
-                                        <small>${formatarMoeda(loan.principalAmount)} → ${formatarMoeda(loan.currentBalance)}</small><br>
+                                        <strong>${icon('user')} ${loan.clientName}</strong><br>
+                                        <small>${formatarMoeda(loan.principalAmount)} ${icon('arrow-right')} ${formatarMoeda(loan.currentBalance)}</small><br>
                                         <small>${(loan.dailyInterestRate * 100).toFixed(1)}%/dia</small>
                                     </div>
                                     <div>${window.getLoanStatusDisplay(loan)}</div>
                                 </div>
                             </div>
                         `).join('')
-                        : (window.emptyState ? window.emptyState('📋', 'Nenhum empréstimo', 'Cadastre um cliente', '+ Novo Cliente', '#new-client') : '')
+                        : (window.emptyState ? window.emptyState('clipboard', 'Nenhum empréstimo', 'Cadastre um cliente', '+ Novo Cliente', '#new-client') : '')
                     }
                 </div>
             </div>
-            
+           
             <div style="margin:16px 0;">
-                <button class="btn btn-accent" style="width:100%;" onclick="location.hash='#new-loan'">➕ Novo Empréstimo</button>
+                <button class="btn btn-accent" style="width:100%;" onclick="location.hash='#new-loan'">${icon('plus')} Novo Empréstimo</button>
             </div>
             <div style="margin:0 0 100px;">
                 <button class="btn btn-outline btn-block" onclick="location.hash='#proposals'">
-                    🧾 Propostas de Vendedores${pendingProposals.length > 0 ? ` (${pendingProposals.length} pendente${pendingProposals.length > 1 ? 's' : ''})` : ''}
+                    ${icon('receipt')} Propostas de Vendedores${pendingProposals.length > 0 ? ` (${pendingProposals.length} pendente${pendingProposals.length > 1 ? 's' : ''})` : ''}
                 </button>
             </div>
         `;
@@ -186,7 +186,7 @@ window.loadDashboard = async function() {
                     options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
                 });
             }
-            
+           
             const topDevedores = (stats.recentLoans || []).filter(l => l.status === 'active').sort((a,b)=>(b.currentBalance||0)-(a.currentBalance||0)).slice(0,5);
             const ctxDevedores = document.getElementById('chart-devedores');
             if (ctxDevedores && topDevedores.length > 0 && window.Chart) {
@@ -208,43 +208,46 @@ window.loadDashboard = async function() {
     } catch (error) {
         console.error('Erro ao carregar dashboard:', error);
         appDiv.innerHTML = `<div class="empty-state"><h3>Erro ao carregar dados</h3><p>${error.message}</p>
-        <button class="btn btn-accent" onclick="loadDashboard()">🔄 Tentar Novamente</button></div>`;
+        <button class="btn btn-accent" onclick="loadDashboard()">${icon('refresh-cw')} Tentar Novamente</button></div>`;
     }
 };
 
 window.loadClients = async function() {
     const appDiv = document.getElementById('app');
-    appDiv.innerHTML = `<div class="page-header"><h2>👥 Clientes</h2></div><div class="loading-container"><div class="spinner"></div></div>`;
-    
+    appDiv.innerHTML = `<div class="page-header"><h2>${icon('users')} Clientes</h2></div><div class="loading-container"><div class="spinner"></div></div>`;
+   
     try {
         const clients = await getClients();
         appDiv.innerHTML = `
             <div class="page-header" style="display:flex;justify-content:space-between;align-items:center;">
-                <div><h1>👥 Clientes</h1></div>
+                <div><h1>${icon('users')} Clientes</h1></div>
             </div>
-            <div class="card"><input type="text" id="search-client" placeholder="🔍 Buscar nome ou CPF..." style="width:100%; height:40px; padding:8px; border:none; background:transparent;"></div>
+            <div class="card" style="display:flex;align-items:center;gap:8px;color:var(--text-light);">
+                ${icon('search')}
+                <input type="text" id="search-client" placeholder="Buscar nome ou CPF..." style="width:100%; height:40px; padding:8px; border:none; background:transparent;">
+            </div>
             <div id="clients-list"></div>
             <div style="margin:16px 0 100px;">
-                <button class="btn btn-primary btn-block" onclick="location.hash='#new-client'">➕ Novo Cliente</button>
+                <button class="btn btn-primary btn-block" onclick="location.hash='#new-client'">${icon('plus')} Novo Cliente</button>
             </div>
         `;
-        
+       
         const renderList = (list) => {
             const listEl = document.getElementById('clients-list');
             if (list.length === 0) {
-                listEl.innerHTML = window.emptyState ? window.emptyState('👥', 'Nenhum cliente cadastrado', 'Cadastre seu primeiro cliente', '+ Novo Cliente', '#new-client') : '<p>Nenhum cliente</p>';
+                listEl.innerHTML = window.emptyState ? window.emptyState('users', 'Nenhum cliente cadastrado', 'Cadastre seu primeiro cliente', '+ Novo Cliente', '#new-client') : '<p>Nenhum cliente</p>';
                 return;
             }
             listEl.innerHTML = list.map(c => `
                 <div class="card" style="margin:8px 0;padding:16px;cursor:pointer;" onclick="location.hash='#client-detail?id=${c.id}'">
-                    <strong>👤 ${c.name}</strong><br>
+                    <strong>${icon('user')} ${c.name}</strong><br>
                     <small>CPF: ${c.cpf || 'N/A'}</small><br>
-                    <small>📞 ${c.phone || 'N/A'}</small>
+                    <small>${icon('phone')} ${c.phone || 'N/A'}</small>
                 </div>
             `).join('');
         };
         renderList(clients);
-        
+       
         document.getElementById('search-client')?.addEventListener('input', (e) => {
             const q = e.target.value.toLowerCase();
             const filtered = clients.filter(c => (c.name||'').toLowerCase().includes(q) || (c.cpf||'').replace(/\D/g, '').includes(q.replace(/\D/g, '')));
@@ -259,8 +262,8 @@ window.loadNewClientForm = async function() {
     const appDiv = document.getElementById('app');
     appDiv.innerHTML = `
         <div class="page-header" style="display:flex; justify-content:space-between; align-items:center;">
-             <button onclick="history.back()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;">←</button>
-             <h2>➕ Novo Cliente</h2>
+             <button onclick="history.back()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;">${icon('arrow-left')}</button>
+             <h2>${icon('plus')} Novo Cliente</h2>
         </div>
         <div class="card">
             <form id="new-client-form">
@@ -306,14 +309,14 @@ window.loadClientDetail = async function() {
     const params = new URLSearchParams(location.hash.split('?')[1]);
     const id = params.get('id');
     appDiv.innerHTML = `<div class="loading-container"><div class="spinner"></div></div>`;
-    
+   
     try {
         const client = await getClient(id);
         const loans = await getLoans({ clientId: id });
         appDiv.innerHTML = `
             <div class="page-header" style="display:flex; justify-content:space-between; align-items:center;">
-                 <button onclick="history.back()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;">← Voltar</button>
-                 <h2>👤 Detalhes do Cliente</h2>
+                 <button onclick="history.back()" style="background:none;border:none;font-size:1.1rem;cursor:pointer;white-space:nowrap;">${icon('arrow-left')} Voltar</button>
+                 <h2>${icon('user')} Detalhes do Cliente</h2>
             </div>
             <div class="card">
                 <h3>${client.name}</h3>
@@ -321,17 +324,17 @@ window.loadClientDetail = async function() {
                 <p>Email: ${client.email || '-'}</p>
                 <p>Telefone: ${client.phone || '-'}</p>
             </div>
-            <h3>🏠 Empréstimos do Cliente</h3>
+            <h3>${icon('home')} Empréstimos do Cliente</h3>
             <div id="client-loans-list">
                  ${loans.length > 0 ? loans.map(l => `
                       <div class="card" style="margin:8px 0;padding:16px;cursor:pointer" onclick="location.hash='#loan-detail?id=${l.id}'">
-                           <strong>R$ ${l.principalAmount} → R$ ${l.currentBalance}</strong>
+                           <strong>R$ ${l.principalAmount} ${icon('arrow-right')} R$ ${l.currentBalance}</strong>
                            <span style="float:right;">${window.getLoanStatusDisplay(l)}</span>
                       </div>
                  `).join('') : '<p>Nenhum empréstimo</p>'}
             </div>
             <div style="margin:16px 0 100px;">
-                <button class="btn btn-accent btn-block" onclick="location.hash='#new-loan?clientId=${client.id}'">➕ Novo Empréstimo</button>
+                <button class="btn btn-accent btn-block" onclick="location.hash='#new-loan?clientId=${client.id}'">${icon('plus')} Novo Empréstimo</button>
             </div>
         `;
     } catch(err) {
@@ -345,18 +348,18 @@ window.loadLoans = async function() {
     try {
         const allLoans = await getLoans();
         appDiv.innerHTML = `
-            <div class="page-header"><h1>💰 Empréstimos</h1><p class="subtitle">Histórico</p></div>
+            <div class="page-header"><h1>${icon('wallet')} Empréstimos</h1><p class="subtitle">Histórico</p></div>
             <div id="loans-list"></div>
-            <div style="margin:16px 0 100px;"><button class="btn btn-primary btn-block" onclick="location.hash='#new-loan'">➕ Novo Empréstimo</button></div>
+            <div style="margin:16px 0 100px;"><button class="btn btn-primary btn-block" onclick="location.hash='#new-loan'">${icon('plus')} Novo Empréstimo</button></div>
         `;
         const listEl = document.getElementById('loans-list');
         if(allLoans.length === 0) {
-            listEl.innerHTML = window.emptyState ? window.emptyState('💰', 'Nenhum empréstimo', 'Comece a operar', '+ Novo', '#new-loan') : '<p>Vazio</p>';
+            listEl.innerHTML = window.emptyState ? window.emptyState('wallet', 'Nenhum empréstimo', 'Comece a operar', '+ Novo', '#new-loan') : '<p>Vazio</p>';
         } else {
             listEl.innerHTML = allLoans.map(loan => `
                  <div class="card loan-card" style="margin:8px 0;padding:16px;cursor:pointer;" onclick="location.hash='#loan-detail?id=${loan.id}'">
                      <div style="display:flex;justify-content:space-between;align-items:center;">
-                          <strong>👤 ${loan.clientName}</strong>
+                          <strong>${icon('user')} ${loan.clientName}</strong>
                           <div>${window.getLoanStatusDisplay(loan)}</div>
                      </div>
                      <small>Original: R$ ${loan.principalAmount} | Atual: R$ ${loan.currentBalance}</small>
@@ -377,8 +380,8 @@ window.loadNewLoanForm = async function() {
         const clients = await getClients();
         appDiv.innerHTML = `
             <div class="page-header" style="display:flex; align-items:center;">
-                 <button onclick="history.back()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;margin-right:12px;">←</button>
-                 <h2>➕ Novo Empréstimo</h2>
+                 <button onclick="history.back()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;margin-right:12px;">${icon('arrow-left')}</button>
+                 <h2>${icon('plus')} Novo Empréstimo</h2>
             </div>
             <div class="card">
                 <form id="new-loan-form">
@@ -432,7 +435,7 @@ window.loadLoanDetail = async function() {
         const {loan, payments} = await getLoan(id);
         appDiv.innerHTML = `
             <div class="page-header" style="display:flex; align-items:center;">
-                 <button onclick="history.back()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;margin-right:12px;">←</button>
+                 <button onclick="history.back()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;margin-right:12px;">${icon('arrow-left')}</button>
                  <h2>Detalhes do Empréstimo</h2>
             </div>
             <div class="card">
@@ -441,10 +444,10 @@ window.loadLoanDetail = async function() {
                  <p>Saldo Devedor Hoje: <strong>R$ ${loan.currentBalance}</strong></p>
                  <p>Status: ${window.getLoanStatusDisplay(loan)}</p>
             </div>
-            
+           
             <!-- COBRANÇA WHATSAPP -->
             <div id="whatsapp-section"></div>
-            
+           
             <div class="card">
                  <h3>Adicionar Pagamento</h3>
                  <div class="input-group"><input type="number" id="pay-amount" placeholder="Valor R$" step="0.01"></div>
@@ -461,23 +464,23 @@ window.loadLoanDetail = async function() {
                            </div>
                            <button class="btn" style="padding:6px 12px;font-size:0.75rem;background:var(--secondary);color:white;"
                                    data-action="recibo" data-payment-index="${index}">
-                               📄 Recibo
+                               ${icon('file-text')} Recibo
                            </button>
                       </div>
                  `).join('') : '<p>Nenhum pagamento</p>'}
             </div>
-            
+           
             <!-- HISTÓRICO DE COBRANÇAS -->
             <div id="reminders-history" style="margin-bottom:100px;"></div>
         `;
-        
+       
         // Pós Renderização (Renderizar e atuar de forma assíncrona)
         setTimeout(async () => {
              // Setup Reminders & WhatsApp
              const clientDoc = await db.collection('users').doc(loan.clientId).get();
              const clientPhone = clientDoc.exists ? clientDoc.data().phone : '';
              const clientName = loan.clientName || 'Cliente';
-             
+            
              const lastReminder = await getLastReminder(id);
              let lastReminderText = 'Nenhuma cobrança enviada ainda';
              if (lastReminder) {
@@ -485,35 +488,35 @@ window.loadLoanDetail = async function() {
                  const diasAtras = diasEntre(d, new Date());
                  lastReminderText = `Última cobrança: ${diasAtras === 0 ? 'hoje' : diasAtras + ' dias atrás'} (${formatarData(d)})`;
              }
-             
+            
              const whatsMessage = encodeURIComponent(
-                 `Olá, ${clientName}! 👋\n\n` +
+                 `Olá, ${clientName}!\n\n` +
                  `Segue atualização do seu empréstimo no CerraLoan:\n\n` +
-                 `💰 *Saldo devedor hoje:* ${formatarMoeda(loan.currentBalance || 0)}\n` +
-                 `📅 Data: ${formatarData(new Date())}\n` +
-                 `📈 Taxa: ${((loan.dailyInterestRate || 0) * 100).toFixed(1)}% ao dia\n\n` +
-                 `⚠️ Quanto antes quitar, menos juros!\n\n` +
+                 `*Saldo devedor hoje:* ${formatarMoeda(loan.currentBalance || 0)}\n` +
+                 `Data: ${formatarData(new Date())}\n` +
+                 `Taxa: ${((loan.dailyInterestRate || 0) * 100).toFixed(1)}% ao dia\n\n` +
+                 `Quanto antes quitar, menos juros!\n\n` +
                  `Acesse seu painel: https://cerraloan.web.app`
              );
              const whatsLink = clientPhone 
                  ? `https://wa.me/55${clientPhone.replace(/\D/g, '')}?text=${whatsMessage}` 
                  : '';
-                 
+                
              const wpDiv = document.getElementById('whatsapp-section');
              if(wpDiv) {
                  wpDiv.innerHTML = `
                     <div class="card" style="margin:16px 0;padding:16px;">
-                        <h4>📲 Cobrança</h4>
+                        <h4>${icon('message-circle')} Cobrança</h4>
                         <p style="color:var(--text-light);font-size:0.8rem;margin:4px 0 12px;">${lastReminderText}</p>
                         ${clientPhone ? `
                             <a href="${whatsLink}" target="_blank" rel="noopener" id="btn-whatsapp-cobrar"
                                class="btn" style="display:block;width:100%;padding:14px;background:#25D366;color:white;text-align:center;text-decoration:none;border-radius:12px;font-size:1rem;box-sizing:border-box;">
-                                💬 Cobrar via WhatsApp
+                                ${icon('message-circle')} Cobrar via WhatsApp
                             </a>
-                        ` : `<p style="color:var(--accent);font-size:0.85rem;">⚠️ Cliente sem telefone cadastrado</p>`}
+                        ` : `<p style="color:var(--accent);font-size:0.85rem;">${icon('alert-triangle')} Cliente sem telefone cadastrado</p>`}
                     </div>
                  `;
-                 
+                
                  document.getElementById('btn-whatsapp-cobrar')?.addEventListener('click', async () => {
                      try {
                          await addReminder(id, {
@@ -522,24 +525,24 @@ window.loadLoanDetail = async function() {
                              saldoAtMoment: loan.currentBalance,
                              message: decodeURIComponent(whatsMessage)
                          });
-                         if(window.showToast) showToast('Cobrança registrada ✅', 'success');
+                         if(window.showToast) showToast('Cobrança registrada', 'success');
                      } catch(e) {
                          console.error('Erro ao registrar cobrança:', e);
                      }
                  });
              }
-             
+            
              // Histórico de Reminders
              const reminders = await getReminders(id);
              const rmDiv = document.getElementById('reminders-history');
              if(rmDiv) {
                  rmDiv.innerHTML = `
                     <div style="margin:16px 0;">
-                        <h4>📲 Histórico de Cobranças</h4>
+                        <h4>${icon('message-circle')} Histórico de Cobranças</h4>
                         ${reminders.length > 0 ? reminders.map(r => `
                             <div class="card" style="margin:6px 0;padding:12px;font-size:0.85rem;">
                                 <div style="display:flex;justify-content:space-between;">
-                                    <span>💬 WhatsApp</span>
+                                    <span>${icon('message-circle')} WhatsApp</span>
                                     <span>${r.sentAt?.toDate ? formatarData(r.sentAt.toDate()) : '-'}</span>
                                 </div>
                                 <small style="color:var(--text-light);">Saldo na hora: ${formatarMoeda(r.saldoAtMoment || 0)}</small>
@@ -548,7 +551,7 @@ window.loadLoanDetail = async function() {
                     </div>
                  `;
              }
-             
+            
              // Event Listeners PDF Recibos
              document.querySelectorAll('[data-action="recibo"]').forEach(btn => {
                  btn.addEventListener('click', () => {
@@ -556,7 +559,7 @@ window.loadLoanDetail = async function() {
                      const payment = payments[idx];
                      if(window.gerarReciboPagamento) {
                          gerarReciboPagamento(loan, payment, clientDoc.data());
-                         if(window.showToast) showToast('Recibo gerado! ✅', 'success');
+                         if(window.showToast) showToast('Recibo gerado!', 'success');
                      }
                  });
              });
@@ -586,33 +589,33 @@ window.loadLoanDetail = async function() {
 
 window.loadSettings = async function() {
     const appDiv = document.getElementById('app');
-    
+   
     // Setup Dark Mode Checkbox state
     const currentTheme = localStorage.getItem('cerraloan-theme');
     const isDark = currentTheme === 'dark';
 
     appDiv.innerHTML = `
         <div class="page-header" style="display:flex; justify-content:space-between; align-items:center;">
-             <h2>⚙️ Configurações</h2>
+             <h2>${icon('settings')} Configurações</h2>
         </div>
 
         <!-- RELATÓRIOS E EXPORTAÇÃO -->
         <div class="card">
-            <h3>📊 Relatórios e Dados</h3>
+            <h3>${icon('bar-chart')} Relatórios e Dados</h3>
             <p style="font-size:0.85rem;color:var(--text-light);margin-bottom:12px;">
                 Exporte os dados do sistema para análise.
             </p>
             <button class="btn btn-outline btn-block mb-1" onclick="window.gerarRelatorioGeral()">
-                📄 Gerar Relatório Geral (PDF)
+                ${icon('file-text')} Gerar Relatório Geral (PDF)
             </button>
             <button class="btn btn-outline btn-block" onclick="window.exportarParaExcel()">
-                📊 Exportar Tudo (Excel)
+                ${icon('bar-chart')} Exportar Tudo (Excel)
             </button>
         </div>
 
         <!-- AUDITORIA -->
         <div class="card">
-            <h3>🛡️ Auditoria (Logs)</h3>
+            <h3>${icon('shield')} Auditoria (Logs)</h3>
             <p style="font-size:0.85rem;color:var(--text-light);margin-bottom:12px;">
                 Histórico de ações críticas do sistema.
             </p>
@@ -624,9 +627,9 @@ window.loadSettings = async function() {
         <!-- PREFERÊNCIAS -->
         <div class="card">
              <h3>Preferências do Aplicativo</h3>
-             
+            
              <div style="display:flex; justify-content:space-between; align-items:center; margin: 16px 0;">
-                <span>🌙 Modo Escuro</span>
+                <span>${icon('moon')} Modo Escuro</span>
                 <label class="switch" style="position:relative; display:inline-block; width:40px; height:24px;">
                   <input type="checkbox" id="theme-toggle" ${isDark ? 'checked' : ''} style="opacity:0; width:0; height:0;">
                   <span class="slider" style="position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0; background-color:#ccc; transition:.4s; border-radius:34px;"></span>
@@ -637,7 +640,7 @@ window.loadSettings = async function() {
                   </style>
                 </label>
              </div>
-             
+            
              <button class="btn btn-danger btn-block mt-3" onclick="handleLogout()">Sair da Conta</button>
         </div>
         <div style="margin-bottom:100px;"></div>
@@ -683,40 +686,40 @@ window.loadSettings = async function() {
 
 window.loadMyLoans = async function() {
     const appDiv = document.getElementById('app');
-    
+   
     // Skeleton
     appDiv.innerHTML = `
         <div class="page-header">
-            <h1>🏦 CerraLoan</h1>
+            <h1>${icon('bank')} CerraLoan</h1>
             <p>Carregando...</p>
         </div>
         <div class="skeleton skeleton-card" style="height:120px;margin:16px 0;"></div>
         <div class="skeleton skeleton-card" style="height:80px;margin:12px 0;"></div>
         <div class="skeleton skeleton-card" style="height:80px;margin:12px 0;"></div>
     `;
-    
+   
     try {
         const user = auth.currentUser;
         if (!user) { location.hash = '#login'; return; }
-        
+       
         // Buscar dados do cliente
         const userDoc = await db.collection('users').doc(user.uid).get();
         const userName = userDoc.exists ? userDoc.data().name : 'Cliente';
-        
+       
         // Buscar empréstimos deste cliente
         const loansSnap = await db.collection('loans')
             .where('clientId', '==', user.uid)
             .get();
-        
+       
         let loans = [];
         let totalDevedorHoje = 0;
         let activeCount = 0;
         let paidCount = 0;
         let totalPago = 0;
-        
+       
         for (const doc of loansSnap.docs) {
             const loan = { id: doc.id, ...doc.data() };
-            
+           
             // Buscar pagamentos
             const paymentsSnap = await db.collection('loans')
                 .doc(doc.id).collection('payments').get();
@@ -724,15 +727,15 @@ window.loadMyLoans = async function() {
                 amount: p.data().amount,
                 date: p.data().date?.toDate ? p.data().date.toDate() : new Date(p.data().date)
             }));
-            
+           
             // Calcular total pago neste empréstimo
             const totalPagoEmprestimo = payments.reduce((sum, p) => sum + p.amount, 0);
             totalPago += totalPagoEmprestimo;
-            
+           
             const startDate = loan.startDate?.toDate 
                 ? loan.startDate.toDate() 
                 : new Date(loan.startDate);
-            
+           
             if (loan.status === 'active') {
                 const resultado = calcularSaldo(
                     loan.principalAmount,
@@ -749,69 +752,69 @@ window.loadMyLoans = async function() {
                 loan.saldoHoje = 0;
                 paidCount++;
             }
-            
+           
             loan.startDateObj = startDate;
             loan.totalPago = totalPagoEmprestimo;
             loans.push(loan);
         }
-        
+       
         // Ordenar: ativos primeiro, depois por data desc
         loans.sort((a, b) => {
             if (a.status === 'active' && b.status !== 'active') return -1;
             if (a.status !== 'active' && b.status === 'active') return 1;
             return (b.startDateObj || 0) - (a.startDateObj || 0);
         });
-        
+       
         appDiv.innerHTML = `
             <div class="page-header" style="display:flex;justify-content:space-between;align-items:center;">
                 <div>
-                    <h1>🏦 CerraLoan</h1>
-                    <p>Olá, ${userName}! 👋</p>
+                    <h1>${icon('bank')} CerraLoan</h1>
+                    <p>Olá, ${userName}! </p>
                 </div>
                 <button onclick="handleLogout()" 
                         style="background:none;border:none;font-size:1.5rem;cursor:pointer;"
-                        title="Sair">🚪</button>
+                        title="Sair">${icon('log-out')}</button>
             </div>
-            
+           
             <!-- RESUMO DO CLIENTE -->
             <div class="balance-card">
-                <div class="label">💰 Meu Saldo Devedor Total</div>
+                <div class="label">${icon('wallet')} Meu Saldo Devedor Total</div>
                 <div class="amount">${formatarMoeda(totalDevedorHoje)}</div>
                 <div class="label" style="margin-top:8px;">
-                    ${activeCount > 0 
-                        ? 'Este é o valor para quitar TUDO hoje' 
-                        : 'Você está em dia! 🎉'}
+                    ${activeCount > 0
+                        ? 'Este é o valor para quitar TUDO hoje'
+                        : 'Você está em dia!'}
                 </div>
             </div>
-            
+           
             <!-- STATS DO CLIENTE -->
             <div class="stats-grid" style="margin-top:16px;">
                 <div class="stat-card">
                     <div class="stat-value">${loans.length}</div>
-                    <div class="stat-label">📋 Total Empréstimos</div>
+                    <div class="stat-label">${icon('clipboard')} Total Empréstimos</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-value">${activeCount}</div>
-                    <div class="stat-label">🟢 Ativos</div>
+                    <div class="stat-label"><span class="status-dot" style="color:var(--success);"></span> Ativos</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-value">${paidCount}</div>
-                    <div class="stat-label">✅ Quitados</div>
+                    <div class="stat-label">${icon('check-circle')} Quitados</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-value">${formatarMoeda(totalPago)}</div>
-                    <div class="stat-label">💵 Total Pago</div>
+                    <div class="stat-label">${icon('banknote')} Total Pago</div>
                 </div>
             </div>
-            
+           
             <!-- EMPRÉSTIMOS ATIVOS -->
             ${activeCount > 0 ? `
                 <div style="margin-top:24px;">
-                    <h3>🟢 Empréstimos Ativos</h3>
+                    <h3><span class="status-dot" style="color:var(--success);"></span> Empréstimos Ativos</h3>
                     ${loans.filter(l => l.status === 'active').map(loan => `
                         <div class="card" style="margin:10px 0;padding:16px;cursor:pointer;border-left:4px solid var(--success);"
                              data-loan-id="${loan.id}" data-type="my-loan-card">
-                            
+                           
                             <div style="display:flex;justify-content:space-between;align-items:flex-start;">
                                 <div>
                                     <small style="color:var(--text-light);">Emprestei</small><br>
@@ -824,32 +827,32 @@ window.loadMyLoans = async function() {
                                     </strong>
                                 </div>
                             </div>
-                            
+                           
                             <div style="margin-top:12px;display:flex;justify-content:space-between;font-size:0.8rem;color:var(--text-light);">
-                                <span>📅 ${formatarData(loan.startDateObj)}</span>
-                                <span>⏱️ ${loan.diasCorridos} dias</span>
-                                <span>📈 ${(loan.dailyInterestRate * 100).toFixed(1)}%/dia</span>
+                                <span>${icon('calendar')} ${formatarData(loan.startDateObj)}</span>
+                                <span>${icon('clock')} ${loan.diasCorridos} dias</span>
+                                <span>${icon('trending-up')} ${(loan.dailyInterestRate * 100).toFixed(1)}%/dia</span>
                             </div>
-                            
+                           
                             <div style="margin-top:12px;display:flex;gap:8px;">
                                 <button class="btn btn-accent" style="flex:1;padding:10px;font-size:0.85rem;"
                                         data-action="view-loan" data-id="${loan.id}">
-                                    📊 Ver Detalhes
+                                    ${icon('bar-chart')} Ver Detalhes
                                 </button>
                                 <button class="btn" style="flex:1;padding:10px;font-size:0.85rem;background:var(--success);color:white;"
                                         data-action="simulate-loan" data-id="${loan.id}">
-                                    🧮 Simular Quitação
+                                    ${icon('calculator')} Simular Quitação
                                 </button>
                             </div>
                         </div>
                     `).join('')}
                 </div>
             ` : ''}
-            
+           
             <!-- EMPRÉSTIMOS QUITADOS -->
             ${paidCount > 0 ? `
                 <div style="margin-top:24px;">
-                    <h3>✅ Empréstimos Quitados</h3>
+                    <h3>${icon('check-circle')} Empréstimos Quitados</h3>
                     ${loans.filter(l => l.status === 'paid').map(loan => `
                         <div class="card" style="margin:10px 0;padding:16px;opacity:0.7;border-left:4px solid #ccc;"
                              data-loan-id="${loan.id}" data-type="my-loan-card">
@@ -869,33 +872,33 @@ window.loadMyLoans = async function() {
                     `).join('')}
                 </div>
             ` : ''}
-            
+           
             <!-- EMPTY STATE -->
             ${loans.length === 0 ? `
                 <div class="empty-state" style="margin-top:40px;">
-                    <div class="empty-emoji">😊</div>
+                    <div class="empty-emoji">${icon('smile')}</div>
                     <h3>Nenhum empréstimo</h3>
                     <p>Você não possui empréstimos no momento.</p>
                     <button class="btn btn-accent" style="margin-top:16px;"
                             data-action="request-loan">
-                        🆕 Solicitar Empréstimo
+                        ${icon('plus')} Solicitar Empréstimo
                     </button>
                 </div>
             ` : ''}
-            
+           
             <!-- DICA -->
             ${activeCount > 0 ? `
                 <div class="card" style="margin:24px 0;padding:16px;background:linear-gradient(135deg,#d4edda,#c3e6cb);border:none;">
                     <p style="margin:0;color:#155724;font-size:0.9rem;">
-                        💡 <strong>Dica:</strong> Quanto antes quitar, menos juros você paga! 
+                        ${icon('lightbulb')} <strong>Dica:</strong> Quanto antes quitar, menos juros você paga! 
                         Cada dia que passa, o valor aumenta.
                     </p>
                 </div>
             ` : ''}
-            
+           
             <div style="height:80px;"></div>
         `;
-        
+       
         // Event listeners
         document.querySelectorAll('[data-action="view-loan"]').forEach(btn => {
             btn.addEventListener('click', (e) => {
@@ -903,33 +906,33 @@ window.loadMyLoans = async function() {
                 location.hash = '#my-loan-detail?id=' + btn.dataset.id;
             });
         });
-        
+       
         document.querySelectorAll('[data-action="simulate-loan"]').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 location.hash = '#my-loan-detail?id=' + btn.dataset.id + '&focus=simulator';
             });
         });
-        
+       
         document.querySelectorAll('[data-type="my-loan-card"]').forEach(card => {
             card.addEventListener('click', () => {
                 location.hash = '#my-loan-detail?id=' + card.dataset.loanId;
             });
         });
-        
+       
         document.querySelector('[data-action="request-loan"]')?.addEventListener('click', () => {
             location.hash = '#request-loan';
         });
-        
+       
     } catch (error) {
         console.error('Erro loadMyLoans:', error);
         appDiv.innerHTML = `
-            <div class="page-header"><h1>🏦 CerraLoan</h1></div>
+            <div class="page-header"><h1>${icon('bank')} CerraLoan</h1></div>
             <div class="empty-state">
-                <div class="empty-emoji">⚠️</div>
+                <div class="empty-emoji">${icon('alert-triangle')}</div>
                 <h3>Erro ao carregar</h3>
                 <p>${error.message}</p>
-                <button class="btn btn-accent" onclick="loadMyLoans()">🔄 Tentar Novamente</button>
+                <button class="btn btn-accent" onclick="loadMyLoans()">${icon('refresh-cw')} Tentar Novamente</button>
             </div>
         `;
     }
@@ -940,34 +943,34 @@ window.loadMyLoanDetail = async function() {
     const params = new URLSearchParams(location.hash.split('?')[1] || '');
     const loanId = params.get('id');
     const focusSimulator = params.get('focus') === 'simulator';
-    
+   
     if (!loanId) { location.hash = '#my-loans'; return; }
-    
+   
     // Skeleton
     appDiv.innerHTML = `
         <div class="page-header">
-            <a href="#my-loans" style="text-decoration:none;color:var(--text);">← Voltar</a>
+            <a href="#my-loans" style="text-decoration:none;color:var(--text);">${icon('arrow-left')} Voltar</a>
         </div>
         <div class="skeleton skeleton-card" style="height:200px;margin:16px 0;"></div>
     `;
-    
+   
     try {
         const user = auth.currentUser;
         if (!user) { location.hash = '#login'; return; }
-        
+       
         // Buscar empréstimo
         const loanDoc = await db.collection('loans').doc(loanId).get();
         if (!loanDoc.exists) { location.hash = '#my-loans'; return; }
-        
+       
         const loan = { id: loanDoc.id, ...loanDoc.data() };
-        
+       
         // Verificar se é do cliente logado
         if (loan.clientId !== user.uid) {
             if(window.showToast) showToast('Acesso negado', 'error');
             location.hash = '#my-loans';
             return;
         }
-        
+       
         // Buscar pagamentos
         const paymentsSnap = await db.collection('loans')
             .doc(loanId).collection('payments').get();
@@ -978,11 +981,11 @@ window.loadMyLoanDetail = async function() {
             type: p.data().type || 'partial'
         }));
         payments.sort((a, b) => b.date - a.date);
-        
+       
         const startDate = loan.startDate?.toDate 
             ? loan.startDate.toDate() 
             : new Date(loan.startDate);
-        
+       
         // Calcular saldo hoje
         const resultado = calcularSaldo(
             loan.principalAmount, loan.dailyInterestRate,
@@ -992,32 +995,32 @@ window.loadMyLoanDetail = async function() {
         const jurosAcumulados = typeof resultado === 'object' ? resultado.jurosAcumulados : (saldoHoje - loan.principalAmount);
         const totalPago = payments.reduce((sum, p) => sum + p.amount, 0);
         const diasCorridos = diasEntre(startDate, new Date());
-        
+       
         // Gerar projeção 7 dias
         const projecao = gerarProjecao(
             loan.principalAmount, loan.dailyInterestRate,
             startDate, payments, 7
         );
-        
+       
         // Custo por dia
         const custoDiario = saldoHoje * loan.dailyInterestRate;
-        
+       
         const isQuitado = loan.status === 'paid';
-        
+       
         appDiv.innerHTML = `
             <div class="page-header" style="display:flex;justify-content:space-between;align-items:center;">
                 <a href="#my-loans" style="text-decoration:none;color:var(--text);font-size:1.1rem;">
-                    ← Voltar
+                    ${icon('arrow-left')} Voltar
                 </a>
                 <button class="btn btn-outline" style="padding:6px 12px;font-size:0.85rem;" onclick="window.gerarExtratoCliente('${loanId}')">
-                    📄 Salvar Extrato
+                    ${icon('file-text')} Salvar Extrato
                 </button>
             </div>
-            
+           
             ${isQuitado ? `
                 <!-- EMPRÉSTIMO QUITADO -->
                 <div class="card" style="margin:16px 0;padding:24px;text-align:center;background:linear-gradient(135deg,#d4edda,#c3e6cb);border:none;">
-                    <div style="font-size:3rem;">🎉</div>
+                    <div style="font-size:3rem;">${icon('check-circle')}</div>
                     <h2 style="color:#155724;margin:8px 0;">Parabéns!</h2>
                     <p style="color:#155724;">Empréstimo Quitado!</p>
                     <div style="margin-top:16px;font-size:0.9rem;color:#155724;">
@@ -1029,18 +1032,18 @@ window.loadMyLoanDetail = async function() {
             ` : `
                 <!-- SALDO DEVEDOR HOJE - DESTAQUE PRINCIPAL -->
                 <div class="balance-card" style="margin:16px 0;">
-                    <div class="label">💰 QUANTO DEVO HOJE</div>
+                    <div class="label">${icon('wallet')} QUANTO DEVO HOJE</div>
                     <div class="amount" style="font-size:2.2rem;">${formatarMoeda(saldoHoje)}</div>
                     <div class="label" style="margin-top:8px;">
                         Este é o valor para quitar AGORA
                     </div>
                     <div style="margin-top:12px;font-size:0.85rem;opacity:0.9;">
-                        ⚠️ Cada dia que passa custa mais 
+                        ${icon('alert-triangle')} Cada dia que passa custa mais 
                         <strong>${formatarMoeda(custoDiario)}</strong>
                     </div>
                 </div>
             `}
-            
+           
             <!-- DADOS DO EMPRÉSTIMO -->
             <div class="card" style="margin:16px 0;padding:16px;">
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
@@ -1070,15 +1073,15 @@ window.loadMyLoanDetail = async function() {
                     </div>
                 </div>
             </div>
-            
+           
             ${!isQuitado ? `
                 <!-- SIMULADOR DE QUITAÇÃO -->
                 <div class="card" style="margin:16px 0;padding:20px;" id="simulator-section">
-                    <h3>📅 Simulador de Quitação</h3>
+                    <h3>${icon('calendar')} Simulador de Quitação</h3>
                     <p style="color:var(--text-light);font-size:0.85rem;margin-bottom:12px;">
                         Veja quanto vai custar se quitar em outra data
                     </p>
-                    
+                   
                     <div style="display:flex;gap:8px;">
                         <input type="date" id="simulate-date" 
                                min="${new Date().toISOString().split('T')[0]}"
@@ -1089,7 +1092,7 @@ window.loadMyLoanDetail = async function() {
                             Calcular
                         </button>
                     </div>
-                    
+                   
                     <div id="simulate-result" style="margin-top:16px;display:none;">
                         <div class="card" style="padding:16px;background:var(--bg);border:2px solid var(--accent);">
                             <div style="text-align:center;">
@@ -1101,10 +1104,10 @@ window.loadMyLoanDetail = async function() {
                         </div>
                     </div>
                 </div>
-                
+               
                 <!-- PROJEÇÃO 7 DIAS -->
                 <div class="card" style="margin:16px 0;padding:20px;">
-                    <h3>📊 Próximos 7 dias</h3>
+                    <h3>${icon('bar-chart')} Próximos 7 dias</h3>
                     <p style="color:var(--text-light);font-size:0.85rem;margin-bottom:12px;">
                         Veja como o valor aumenta a cada dia
                     </p>
@@ -1116,7 +1119,7 @@ window.loadMyLoanDetail = async function() {
                             return `
                                 <tr style="${isToday ? 'background:var(--primary);color:white;font-weight:600;' : ''}">
                                     <td style="padding:10px 14px;border-radius:${isToday ? '8px 0 0 8px' : '0'};">
-                                        ${isToday ? '📌 Hoje' : formatarData(data instanceof Date ? data : new Date(data))}
+                                        ${isToday ? 'Hoje' : formatarData(data instanceof Date ? data : new Date(data))}
                                     </td>
                                     <td style="padding:10px 14px;text-align:right;border-radius:${isToday ? '0 8px 8px 0' : '0'};">
                                         ${formatarMoeda(saldo)}
@@ -1127,17 +1130,17 @@ window.loadMyLoanDetail = async function() {
                     </table>
                 </div>
             ` : ''}
-            
+           
             <!-- HISTÓRICO DE PAGAMENTOS -->
             <div style="margin:16px 0;">
-                <h3>💳 Meus Pagamentos</h3>
+                <h3>${icon('credit-card')} Meus Pagamentos</h3>
                 ${payments.length > 0 
                     ? payments.map(p => `
                         <div class="card" style="margin:8px 0;padding:14px;display:flex;justify-content:space-between;align-items:center;">
                             <div>
                                 <strong>${formatarData(p.date)}</strong><br>
                                 <small style="color:var(--text-light);">
-                                    ${p.type === 'full' ? '✅ Quitação' : '💳 Parcial'}
+                                    ${p.type === 'full' ? `${icon('check-circle')} Quitação` : `${icon('credit-card')} Parcial`}
                                 </small>
                             </div>
                             <div style="text-align:right;">
@@ -1149,61 +1152,61 @@ window.loadMyLoanDetail = async function() {
                     `).join('')
                     : `
                         <div class="empty-state" style="padding:24px;">
-                            <div class="empty-emoji">💳</div>
+                            <div class="empty-emoji">${icon('credit-card')}</div>
                             <p>Nenhum pagamento registrado ainda</p>
                         </div>
                     `
                 }
             </div>
-            
+           
             <div style="height:80px;"></div>
         `;
-        
+       
         // Event listener do simulador
         document.getElementById('btn-simulate')?.addEventListener('click', () => {
             const dateInput = document.getElementById('simulate-date');
             const targetDate = new Date(dateInput.value + 'T12:00:00');
-            
+           
             if (targetDate < new Date(new Date().toDateString())) {
                 if(window.showToast) showToast('Selecione uma data futura', 'error');
                 return;
             }
-            
+           
             const simResult = calcularSaldo(
                 loan.principalAmount, loan.dailyInterestRate,
                 startDate, payments, targetDate
             );
             const simSaldo = typeof simResult === 'object' ? simResult.saldoDevedor : simResult;
             const diferenca = simSaldo - saldoHoje;
-            
+           
             document.getElementById('simulate-result').style.display = 'block';
             document.getElementById('sim-date-label').textContent = formatarData(targetDate);
             document.getElementById('sim-value').textContent = formatarMoeda(simSaldo);
             document.getElementById('sim-diff').innerHTML = diferenca > 0
-                ? `⚠️ <strong>${formatarMoeda(diferenca)}</strong> a mais que hoje!`
+                ? `${icon('alert-triangle')} <strong>${formatarMoeda(diferenca)}</strong> a mais que hoje!`
                 : diferenca < 0 
-                    ? `✅ <strong>${formatarMoeda(Math.abs(diferenca))}</strong> a menos que hoje`
+                    ? `${icon('check-circle')} <strong>${formatarMoeda(Math.abs(diferenca))}</strong> a menos que hoje`
                     : `Mesmo valor de hoje`;
         });
-        
+       
         // Auto-scroll para simulador se veio do botão "Simular"
         if (focusSimulator) {
             setTimeout(() => {
                 document.getElementById('simulator-section')?.scrollIntoView({ behavior: 'smooth' });
             }, 300);
         }
-        
+       
     } catch (error) {
         console.error('Erro loadMyLoanDetail:', error);
         appDiv.innerHTML = `
             <div class="page-header">
-                <a href="#my-loans" style="text-decoration:none;color:var(--text);">← Voltar</a>
+                <a href="#my-loans" style="text-decoration:none;color:var(--text);">${icon('arrow-left')} Voltar</a>
             </div>
             <div class="empty-state">
-                <div class="empty-emoji">⚠️</div>
+                <div class="empty-emoji">${icon('alert-triangle')}</div>
                 <h3>Erro ao carregar</h3>
                 <p>${error.message}</p>
-                <button class="btn btn-accent" onclick="location.hash='#my-loans'">← Voltar</button>
+                <button class="btn btn-accent" onclick="location.hash='#my-loans'">${icon('arrow-left')} Voltar</button>
             </div>
         `;
     }
@@ -1213,7 +1216,7 @@ window.loadRequestLoan = async function() {
     const appDiv = document.getElementById('app');
     const user = auth.currentUser;
     if (!user) { location.hash = '#login'; return; }
-    
+   
     // Buscar dados da empresa
     let companyPhone = '';
     let companyName = 'CerraLoan';
@@ -1222,11 +1225,11 @@ window.loadRequestLoan = async function() {
         companyPhone = settings.companyPhone || '';
         companyName = settings.companyName || 'CerraLoan';
     } catch(e) {}
-    
+   
     // Buscar nome do cliente
     const userDoc = await db.collection('users').doc(user.uid).get();
     const userName = userDoc.exists ? userDoc.data().name : 'Cliente';
-    
+   
     // Mensagem WhatsApp pré-formatada
     const whatsMsg = encodeURIComponent(
         `Olá! Sou ${userName}, cliente do ${companyName}. Gostaria de solicitar um novo empréstimo. Podemos conversar?`
@@ -1234,47 +1237,47 @@ window.loadRequestLoan = async function() {
     const whatsLink = companyPhone 
         ? `https://wa.me/55${companyPhone.replace(/\D/g, '')}?text=${whatsMsg}`
         : '#';
-    
+   
     appDiv.innerHTML = `
         <div class="page-header">
-            <a href="#my-loans" style="text-decoration:none;color:var(--text);">← Voltar</a>
-            <h2>🆕 Solicitar Empréstimo</h2>
+            <a href="#my-loans" style="text-decoration:none;color:var(--text);">${icon('arrow-left')} Voltar</a>
+            <h2>${icon('plus')} Solicitar Empréstimo</h2>
         </div>
-        
+       
         <div class="card" style="margin:16px 0;padding:24px;text-align:center;">
-            <div style="font-size:3rem;">🤝</div>
+            <div style="font-size:3rem;">${icon('handshake')}</div>
             <h3 style="margin:12px 0;">Precisa de um novo empréstimo?</h3>
             <p style="color:var(--text-light);margin-bottom:20px;">
                 Entre em contato conosco para solicitar um novo empréstimo. 
                 Analisaremos seu pedido rapidamente!
             </p>
-            
+           
             ${companyPhone ? `
                 <a href="${whatsLink}" target="_blank" rel="noopener"
                    class="btn" style="display:block;width:100%;padding:16px;background:#25D366;color:white;font-size:1rem;text-decoration:none;border-radius:12px;margin-bottom:12px;">
-                    💬 Solicitar via WhatsApp
+                    ${icon('message-circle')} Solicitar via WhatsApp
                 </a>
-                
+               
                 <a href="tel:+55${companyPhone.replace(/\D/g, '')}" 
                    class="btn" style="display:block;width:100%;padding:16px;background:var(--secondary);color:white;font-size:1rem;text-decoration:none;border-radius:12px;">
-                    📞 Ligar: ${companyPhone}
+                    ${icon('phone')} Ligar: ${companyPhone}
                 </a>
             ` : `
                 <div class="card" style="padding:16px;background:var(--bg);">
-                    <p>📞 Entre em contato com <strong>${companyName}</strong> 
+                    <p>${icon('phone')} Entre em contato com <strong>${companyName}</strong> 
                     para solicitar seu empréstimo.</p>
                 </div>
             `}
         </div>
-        
+       
         <div class="card" style="margin:16px 0;padding:16px;background:linear-gradient(135deg,#fff3cd,#ffeeba);border:none;">
             <p style="margin:0;color:#856404;font-size:0.85rem;">
-                ℹ️ <strong>Como funciona:</strong> Após sua solicitação, 
+                ${icon('info')} <strong>Como funciona:</strong> Após sua solicitação, 
                 um administrador analisará e, se aprovado, o empréstimo 
                 aparecerá automaticamente na sua tela "Meus Empréstimos".
             </p>
         </div>
-        
+       
         <div style="height:80px;"></div>
     `;
 };
@@ -1283,64 +1286,64 @@ window.loadProfile = async function() {
     const appDiv = document.getElementById('app');
     const user = auth.currentUser;
     if (!user) { location.hash = '#login'; return; }
-    
+   
     try {
         const userDoc = await db.collection('users').doc(user.uid).get();
         const userData = userDoc.exists ? userDoc.data() : {};
-        
+       
         // Buscar settings
         let settings = {};
         try { settings = await (typeof getSettings === 'function' ? getSettings() : {companyName: 'CerraLoan', companyPhone: ''}); } catch(e) {}
-        
+       
         // Buscar stats do cliente
         const loansSnap = await db.collection('loans')
             .where('clientId', '==', user.uid).get();
         let totalEmprestimos = loansSnap.size;
         let ativos = 0, quitados = 0, totalEmprestado = 0, totalPago = 0;
-        
+       
         for (const doc of loansSnap.docs) {
             const loan = doc.data();
             if (loan.status === 'active') ativos++;
             if (loan.status === 'paid') quitados++;
             totalEmprestado += loan.principalAmount || 0;
-            
+           
             const pSnap = await db.collection('loans').doc(doc.id).collection('payments').get();
             pSnap.forEach(p => { totalPago += p.data().amount || 0; });
         }
-        
+       
         const currentTheme = localStorage.getItem('cerraloan-theme');
         const isDark = currentTheme === 'dark';
-        
+       
         appDiv.innerHTML = `
             <div class="page-header">
-                <h2>👤 Meu Perfil</h2>
+                <h2>${icon('user')} Meu Perfil</h2>
             </div>
-            
+           
             <div class="card" style="margin:16px 0;padding:24px;text-align:center;">
-                <div style="font-size:4rem;">👤</div>
+                <div style="font-size:4rem;">${icon('user')}</div>
                 <h3 style="margin:8px 0;">${userData.name || 'Cliente'}</h3>
                 <p style="color:var(--text-light);">${userData.email || user.email}</p>
             </div>
-            
+           
             <div class="card" style="margin:16px 0;padding:16px;">
-                <h4>📋 Meus Dados</h4>
+                <h4>${icon('clipboard')} Meus Dados</h4>
                 <div style="margin-top:12px;">
                     <small style="color:var(--text-light);">Nome</small>
                     <p style="margin:4px 0 12px;"><strong>${userData.name || '-'}</strong></p>
-                    
+                   
                     <small style="color:var(--text-light);">CPF</small>
                     <p style="margin:4px 0 12px;"><strong>${userData.cpf || '-'}</strong></p>
-                    
+                   
                     <small style="color:var(--text-light);">Telefone</small>
                     <p style="margin:4px 0 12px;"><strong>${userData.phone || '-'}</strong></p>
-                    
+                   
                     <small style="color:var(--text-light);">Email</small>
                     <p style="margin:4px 0 0;"><strong>${userData.email || user.email}</strong></p>
                 </div>
             </div>
-            
+           
             <div class="card" style="margin:16px 0;padding:16px;">
-                <h4>📊 Meu Histórico</h4>
+                <h4>${icon('bar-chart')} Meu Histórico</h4>
                 <div class="stats-grid" style="margin-top:12px;">
                     <div class="stat-card">
                         <div class="stat-value">${totalEmprestimos}</div>
@@ -1360,11 +1363,11 @@ window.loadProfile = async function() {
                     </div>
                 </div>
             </div>
-            
+           
             <div class="card" style="margin:16px 0;padding:16px;">
-                <h4>⚙️ Preferências</h4>
+                <h4>${icon('settings')} Preferências</h4>
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-top: 12px; margin-bottom: 8px;">
-                    <span style="font-size:0.9rem;">🌙 Modo Escuro</span>
+                    <span style="font-size:0.9rem;">${icon('moon')} Modo Escuro</span>
                     <label class="switch" style="position:relative; display:inline-block; width:40px; height:24px;">
                       <input type="checkbox" id="theme-toggle" ${isDark ? 'checked' : ''} style="opacity:0; width:0; height:0;">
                       <span class="slider" style="position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0; background-color:#ccc; transition:.4s; border-radius:34px;"></span>
@@ -1376,9 +1379,9 @@ window.loadProfile = async function() {
                     </label>
                  </div>
             </div>
-            
+           
             <div class="card" style="margin:16px 0;padding:16px;">
-                <h4>🔒 Alterar Senha</h4>
+                <h4>${icon('lock')} Alterar Senha</h4>
                 <div style="margin-top:12px;">
                     <input type="password" id="current-password" placeholder="Senha atual" style="margin-bottom:8px;" />
                     <input type="password" id="new-password" placeholder="Nova senha (mín. 6 caracteres)" style="margin-bottom:8px;" />
@@ -1388,26 +1391,26 @@ window.loadProfile = async function() {
                     </button>
                 </div>
             </div>
-            
+           
             ${settings.companyPhone ? `
                 <div class="card" style="margin:16px 0;padding:16px;">
-                    <h4>📞 Contato</h4>
+                    <h4>${icon('phone')} Contato</h4>
                     <p style="margin:8px 0;">Dúvidas? Fale com:</p>
                     <p><strong>${settings.companyName || 'CerraLoan'}</strong></p>
-                    <p>📞 ${settings.companyPhone}</p>
+                    <p>${icon('phone')} ${settings.companyPhone}</p>
                 </div>
             ` : ''}
-            
+           
             <button class="btn" id="btn-logout"
                     style="width:100%;padding:16px;background:var(--accent);color:white;font-size:1rem;margin:16px 0;">
-                🚪 Sair da Conta
+                ${icon('log-out')} Sair da Conta
             </button>
-            
+           
             <p style="text-align:center;color:var(--text-light);font-size:0.8rem;margin-bottom:100px;">
                 CerraLoan v1.0 © 2025
             </p>
         `;
-        
+       
         // Lógica Dark Mode
         document.getElementById('theme-toggle')?.addEventListener('change', (e) => {
             if (e.target.checked) {
@@ -1418,13 +1421,13 @@ window.loadProfile = async function() {
                 localStorage.setItem('cerraloan-theme', 'light');
             }
         });
-        
+       
         // Event listeners
         document.getElementById('btn-change-password')?.addEventListener('click', async () => {
             const current = document.getElementById('current-password').value;
             const newPass = document.getElementById('new-password').value;
             const confirm = document.getElementById('confirm-password').value;
-            
+           
             if (!current || !newPass || !confirm) {
                 if(window.showToast) showToast('Preencha todos os campos', 'error');
                 return;
@@ -1437,14 +1440,14 @@ window.loadProfile = async function() {
                 if(window.showToast) showToast('As senhas não coincidem', 'error');
                 return;
             }
-            
+           
             try {
                 if(window.showLoading) showLoading();
                 const credential = firebase.auth.EmailAuthProvider.credential(user.email, current);
                 await user.reauthenticateWithCredential(credential);
                 await user.updatePassword(newPass);
                 if(window.hideLoading) hideLoading();
-                if(window.showToast) showToast('Senha alterada com sucesso! ✅', 'success');
+                if(window.showToast) showToast('Senha alterada com sucesso!', 'success');
                 document.getElementById('current-password').value = '';
                 document.getElementById('new-password').value = '';
                 document.getElementById('confirm-password').value = '';
@@ -1453,16 +1456,16 @@ window.loadProfile = async function() {
                 if(window.showToast) showToast(typeof translateAuthError === 'function' ? translateAuthError(error.code) : error.message, 'error');
             }
         });
-        
+       
         document.getElementById('btn-logout')?.addEventListener('click', () => {
             handleLogout();
         });
-        
+       
     } catch (error) {
         console.error('Erro loadProfile:', error);
         appDiv.innerHTML = `
             <div class="empty-state">
-                <div class="empty-emoji">⚠️</div>
+                <div class="empty-emoji">${icon('alert-triangle')}</div>
                 <h3>Erro ao carregar perfil</h3>
                 <p>${error.message}</p>
             </div>
@@ -1492,8 +1495,8 @@ window.loadVendedorDashboard = async function() {
 
         appDiv.innerHTML = `
             <div class="page-header" style="display:flex;justify-content:space-between;align-items:center;">
-                <div><h1>🏦 CerraLoan</h1><p>Olá, ${userName}! 👋</p></div>
-                <button onclick="handleLogout()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;" title="Sair">🚪</button>
+                <div><h1>${icon('bank')} CerraLoan</h1><p>Olá, ${userName}! </p></div>
+                <button onclick="handleLogout()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;" title="Sair">${icon('log-out')}</button>
             </div>
 
             <div class="stats-grid" style="margin-top:16px;">
@@ -1503,25 +1506,25 @@ window.loadVendedorDashboard = async function() {
                 </div>
                 <div class="stat-card">
                     <div class="stat-value">${approved}</div>
-                    <div class="stat-label">✅ Aprovadas</div>
+                    <div class="stat-label">${icon('check-circle')} Aprovadas</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-value">${rejected}</div>
-                    <div class="stat-label">🔴 Rejeitadas</div>
+                    <div class="stat-label"><span class="status-dot" style="color:var(--danger);"></span> Rejeitadas</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-value">${formatarMoeda(totalVendido)}</div>
-                    <div class="stat-label">💵 Total Vendido</div>
+                    <div class="stat-label">${icon('banknote')} Total Vendido</div>
                 </div>
             </div>
 
-            <h3 class="mt-3 mb-2">🧾 Últimas Propostas</h3>
+            <h3 class="mt-3 mb-2">${icon('receipt')} Últimas Propostas</h3>
             <div id="vendedor-proposals-list">
-                ${proposals.length === 0 ? (window.emptyState ? window.emptyState('🧾', 'Nenhuma proposta ainda', 'Envie sua primeira proposta de crédito para o gestor', '+ Nova Proposta', '#new-proposal') : '<p>Nenhuma proposta</p>') :
+                ${proposals.length === 0 ? (window.emptyState ? window.emptyState('receipt', 'Nenhuma proposta ainda', 'Envie sua primeira proposta de crédito para o gestor', '+ Nova Proposta', '#new-proposal') : '<p>Nenhuma proposta</p>') :
                     proposals.slice(0, 10).map(p => `
                         <div class="card" style="margin:8px 0;padding:16px;">
                             <div style="display:flex;justify-content:space-between;align-items:center;">
-                                <strong>👤 ${p.clientName}</strong>
+                                <strong>${icon('user')} ${p.clientName}</strong>
                                 ${window.proposalStatusBadge(p.status)}
                             </div>
                             <small>${formatarMoeda(p.principalAmount)} • ${(p.dailyInterestRate * 100).toFixed(2)}%/dia</small>
@@ -1530,7 +1533,7 @@ window.loadVendedorDashboard = async function() {
             </div>
 
             <div style="margin:16px 0 100px;">
-                <button class="btn btn-accent btn-block" onclick="location.hash='#new-proposal'">➕ Nova Proposta de Crédito</button>
+                <button class="btn btn-accent btn-block" onclick="location.hash='#new-proposal'">${icon('plus')} Nova Proposta de Crédito</button>
             </div>
         `;
     } catch (error) {
@@ -1540,9 +1543,9 @@ window.loadVendedorDashboard = async function() {
 };
 
 window.proposalStatusBadge = function(status) {
-    if (status === 'approved') return '<span class="list-item-badge badge-success" style="background:rgba(0,184,148,0.15);color:var(--success);">✅ Aprovada</span>';
-    if (status === 'rejected') return '<span class="list-item-badge badge-danger" style="background:rgba(214,48,49,0.15);color:var(--danger);">🔴 Rejeitada</span>';
-    return '<span class="list-item-badge badge-attention">⏳ Pendente</span>';
+    if (status === 'approved') return `<span class="list-item-badge badge-success" style="background:rgba(0,184,148,0.15);color:var(--success);">${icon('check-circle')} Aprovada</span>`;
+    if (status === 'rejected') return `<span class="list-item-badge badge-danger" style="background:rgba(214,48,49,0.15);color:var(--danger);">${icon('x-circle')} Rejeitada</span>`;
+    return `<span class="list-item-badge badge-attention">${icon('clock')} Pendente</span>`;
 };
 
 window.loadNewProposal = async function() {
@@ -1553,8 +1556,8 @@ window.loadNewProposal = async function() {
 
     appDiv.innerHTML = `
         <div class="page-header" style="display:flex; justify-content:space-between; align-items:center;">
-             <button onclick="history.back()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;">←</button>
-             <h2>➕ Nova Proposta</h2>
+             <button onclick="history.back()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;">${icon('arrow-left')}</button>
+             <h2>${icon('plus')} Nova Proposta</h2>
         </div>
         <div class="card">
             <form id="new-proposal-form">
@@ -1583,7 +1586,7 @@ window.loadNewProposal = async function() {
                 vendedorName
             });
             if (window.hideLoading) hideLoading();
-            if (window.showToast) showToast('Proposta enviada ao gestor! ✅', 'success');
+            if (window.showToast) showToast('Proposta enviada ao gestor!', 'success');
             location.hash = '#my-proposals';
         } catch (err) {
             if (window.hideLoading) hideLoading();
@@ -1601,13 +1604,13 @@ window.loadMyProposals = async function() {
         const proposals = await getProposals({ vendedorId: user.uid });
 
         appDiv.innerHTML = `
-            <div class="page-header"><h1>🧾 Minhas Propostas</h1></div>
+            <div class="page-header"><h1>${icon('receipt')} Minhas Propostas</h1></div>
             <div id="my-proposals-list">
-                ${proposals.length === 0 ? (window.emptyState ? window.emptyState('🧾', 'Nenhuma proposta ainda', 'Envie sua primeira proposta de crédito', '+ Nova Proposta', '#new-proposal') : '<p>Nenhuma proposta</p>') :
+                ${proposals.length === 0 ? (window.emptyState ? window.emptyState('receipt', 'Nenhuma proposta ainda', 'Envie sua primeira proposta de crédito', '+ Nova Proposta', '#new-proposal') : '<p>Nenhuma proposta</p>') :
                     proposals.map(p => `
                         <div class="card" style="margin:8px 0;padding:16px;">
                             <div style="display:flex;justify-content:space-between;align-items:center;">
-                                <strong>👤 ${p.clientName}</strong>
+                                <strong>${icon('user')} ${p.clientName}</strong>
                                 ${window.proposalStatusBadge(p.status)}
                             </div>
                             <small>${formatarMoeda(p.principalAmount)} • ${(p.dailyInterestRate * 100).toFixed(2)}%/dia</small>
@@ -1617,7 +1620,7 @@ window.loadMyProposals = async function() {
                     `).join('')}
             </div>
             <div style="margin:16px 0 100px;">
-                <button class="btn btn-accent btn-block" onclick="location.hash='#new-proposal'">➕ Nova Proposta</button>
+                <button class="btn btn-accent btn-block" onclick="location.hash='#new-proposal'">${icon('plus')} Nova Proposta</button>
             </div>
         `;
     } catch (error) {
@@ -1638,8 +1641,8 @@ window.loadProposals = async function() {
 
         appDiv.innerHTML = `
             <div class="page-header" style="display:flex; justify-content:space-between; align-items:center;">
-                 <button onclick="history.back()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;">← Voltar</button>
-                 <h2>🧾 Propostas de Vendedores</h2>
+                 <button onclick="history.back()" style="background:none;border:none;font-size:1.1rem;cursor:pointer;white-space:nowrap;">${icon('arrow-left')} Voltar</button>
+                 <h2>${icon('receipt')} Propostas de Vendedores</h2>
             </div>
 
             <h3 class="mt-2 mb-2">⏳ Pendentes (${pending.length})</h3>
@@ -1647,24 +1650,24 @@ window.loadProposals = async function() {
                 ${pending.length === 0 ? '<p style="color:var(--text-light);">Nenhuma proposta pendente.</p>' :
                     pending.map(p => `
                         <div class="card" style="margin:8px 0;padding:16px;">
-                            <strong>👤 ${p.clientName}</strong> <small>(via ${p.vendedorName || 'vendedor'})</small><br>
+                            <strong>${icon('user')} ${p.clientName}</strong> <small>(via ${p.vendedorName || 'vendedor'})</small><br>
                             <small>${formatarMoeda(p.principalAmount)} • ${(p.dailyInterestRate * 100).toFixed(2)}%/dia</small>
                             ${p.notes ? `<br><small style="color:var(--text-light);">${p.notes}</small>` : ''}
                             <div style="display:flex;gap:12px;margin-top:12px;">
-                                <button class="btn btn-success btn-block" data-approve="${p.id}">✅ Aprovar</button>
-                                <button class="btn btn-outline btn-block" data-reject="${p.id}">❌ Rejeitar</button>
+                                <button class="btn btn-success btn-block" data-approve="${p.id}">${icon('check-circle')} Aprovar</button>
+                                <button class="btn btn-outline btn-block" data-reject="${p.id}">${icon('x-circle')} Rejeitar</button>
                             </div>
                         </div>
                     `).join('')}
             </div>
 
-            <h3 class="mt-3 mb-2">📜 Histórico</h3>
+            <h3 class="mt-3 mb-2">${icon('file-text')} Histórico</h3>
             <div id="resolved-proposals-list" style="margin-bottom:100px;">
                 ${resolved.length === 0 ? '<p style="color:var(--text-light);">Sem propostas analisadas ainda.</p>' :
                     resolved.map(p => `
                         <div class="card" style="margin:8px 0;padding:16px;">
                             <div style="display:flex;justify-content:space-between;align-items:center;">
-                                <strong>👤 ${p.clientName}</strong>
+                                <strong>${icon('user')} ${p.clientName}</strong>
                                 ${window.proposalStatusBadge(p.status)}
                             </div>
                             <small>${formatarMoeda(p.principalAmount)} • via ${p.vendedorName || 'vendedor'}</small>
@@ -1680,7 +1683,7 @@ window.loadProposals = async function() {
                     if (window.showLoading) showLoading();
                     await approveProposal(btn.getAttribute('data-approve'));
                     if (window.hideLoading) hideLoading();
-                    if (window.showToast) showToast('Proposta aprovada! Empréstimo criado. ✅', 'success');
+                    if (window.showToast) showToast('Proposta aprovada! Empréstimo criado.', 'success');
                     await window.loadProposals();
                 } catch (err) {
                     if (window.hideLoading) hideLoading();

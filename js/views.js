@@ -54,7 +54,8 @@ window.loadDashboard = async function() {
         const userDoc = await window.db.collection('users').doc(user.uid).get();
         const userName = userDoc.exists ? userDoc.data().name : 'Admin';
         const stats = await getDashboardStats();
-        
+        const pendingProposals = await getProposals({ status: 'pending' });
+
         appDiv.innerHTML = `
             <div class="page-header" style="display:flex;justify-content:space-between;align-items:center;">
                 <div><h1>🏦 CerraLoan</h1><p>Olá, ${userName}! 👋</p></div>
@@ -157,11 +158,16 @@ window.loadDashboard = async function() {
                 </div>
             </div>
             
-            <div style="margin:16px 0 100px;">
+            <div style="margin:16px 0;">
                 <button class="btn btn-accent" style="width:100%;" onclick="location.hash='#new-loan'">➕ Novo Empréstimo</button>
             </div>
+            <div style="margin:0 0 100px;">
+                <button class="btn btn-outline btn-block" onclick="location.hash='#proposals'">
+                    🧾 Propostas de Vendedores${pendingProposals.length > 0 ? ` (${pendingProposals.length} pendente${pendingProposals.length > 1 ? 's' : ''})` : ''}
+                </button>
+            </div>
         `;
-        
+
         // Inicializar Gráficos
         setTimeout(() => {
             const ctxStatus = document.getElementById('chart-status');
@@ -1461,5 +1467,244 @@ window.loadProfile = async function() {
                 <p>${error.message}</p>
             </div>
         `;
+    }
+};
+
+// ===== VENDEDOR VIEWS =====
+
+window.loadVendedorDashboard = async function() {
+    const appDiv = document.getElementById('app');
+    appDiv.innerHTML = `<div class="loading-container"><div class="spinner"></div></div>`;
+
+    try {
+        const user = auth.currentUser;
+        if (!user) { location.hash = '#login'; return; }
+
+        const userDoc = await db.collection('users').doc(user.uid).get();
+        const userName = userDoc.exists ? userDoc.data().name : 'Vendedor';
+
+        const proposals = await getProposals({ vendedorId: user.uid });
+        const pending = proposals.filter(p => p.status === 'pending').length;
+        const approved = proposals.filter(p => p.status === 'approved').length;
+        const rejected = proposals.filter(p => p.status === 'rejected').length;
+        const totalVendido = proposals.filter(p => p.status === 'approved')
+            .reduce((sum, p) => sum + (p.principalAmount || 0), 0);
+
+        appDiv.innerHTML = `
+            <div class="page-header" style="display:flex;justify-content:space-between;align-items:center;">
+                <div><h1>🏦 CerraLoan</h1><p>Olá, ${userName}! 👋</p></div>
+                <button onclick="handleLogout()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;" title="Sair">🚪</button>
+            </div>
+
+            <div class="stats-grid" style="margin-top:16px;">
+                <div class="stat-card">
+                    <div class="stat-value">${pending}</div>
+                    <div class="stat-label">⏳ Pendentes</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${approved}</div>
+                    <div class="stat-label">✅ Aprovadas</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${rejected}</div>
+                    <div class="stat-label">🔴 Rejeitadas</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${formatarMoeda(totalVendido)}</div>
+                    <div class="stat-label">💵 Total Vendido</div>
+                </div>
+            </div>
+
+            <h3 class="mt-3 mb-2">🧾 Últimas Propostas</h3>
+            <div id="vendedor-proposals-list">
+                ${proposals.length === 0 ? (window.emptyState ? window.emptyState('🧾', 'Nenhuma proposta ainda', 'Envie sua primeira proposta de crédito para o gestor', '+ Nova Proposta', '#new-proposal') : '<p>Nenhuma proposta</p>') :
+                    proposals.slice(0, 10).map(p => `
+                        <div class="card" style="margin:8px 0;padding:16px;">
+                            <div style="display:flex;justify-content:space-between;align-items:center;">
+                                <strong>👤 ${p.clientName}</strong>
+                                ${window.proposalStatusBadge(p.status)}
+                            </div>
+                            <small>${formatarMoeda(p.principalAmount)} • ${(p.dailyInterestRate * 100).toFixed(2)}%/dia</small>
+                        </div>
+                    `).join('')}
+            </div>
+
+            <div style="margin:16px 0 100px;">
+                <button class="btn btn-accent btn-block" onclick="location.hash='#new-proposal'">➕ Nova Proposta de Crédito</button>
+            </div>
+        `;
+    } catch (error) {
+        console.error('Erro loadVendedorDashboard:', error);
+        appDiv.innerHTML = `<div class="empty-state"><h3>Erro ao carregar dados</h3><p>${error.message}</p></div>`;
+    }
+};
+
+window.proposalStatusBadge = function(status) {
+    if (status === 'approved') return '<span class="list-item-badge badge-success" style="background:rgba(0,184,148,0.15);color:var(--success);">✅ Aprovada</span>';
+    if (status === 'rejected') return '<span class="list-item-badge badge-danger" style="background:rgba(214,48,49,0.15);color:var(--danger);">🔴 Rejeitada</span>';
+    return '<span class="list-item-badge badge-attention">⏳ Pendente</span>';
+};
+
+window.loadNewProposal = async function() {
+    const appDiv = document.getElementById('app');
+    const user = auth.currentUser;
+    const userDoc = user ? await db.collection('users').doc(user.uid).get() : null;
+    const vendedorName = userDoc && userDoc.exists ? userDoc.data().name : '';
+
+    appDiv.innerHTML = `
+        <div class="page-header" style="display:flex; justify-content:space-between; align-items:center;">
+             <button onclick="history.back()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;">←</button>
+             <h2>➕ Nova Proposta</h2>
+        </div>
+        <div class="card">
+            <form id="new-proposal-form">
+                <div class="input-group"><label>Nome do Cliente</label><input type="text" id="proposal-client-name" required></div>
+                <div class="input-group"><label>CPF</label><input type="text" id="proposal-client-cpf" placeholder="000.000.000-00"></div>
+                <div class="input-group"><label>Telefone</label><input type="text" id="proposal-client-phone" placeholder="(00) 00000-0000"></div>
+                <div class="input-group"><label>Valor do Crédito (R$)</label><input type="number" id="proposal-amount" min="1" step="0.01" required></div>
+                <div class="input-group"><label>Taxa Diária (%)</label><input type="number" id="proposal-rate" value="0.5" min="0.01" step="0.01" required></div>
+                <div class="input-group"><label>Observações</label><input type="text" id="proposal-notes" placeholder="Opcional"></div>
+                <button type="submit" class="btn btn-primary btn-block">Enviar Proposta ao Gestor</button>
+            </form>
+        </div>
+    `;
+
+    document.getElementById('new-proposal-form')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        try {
+            if (window.showLoading) showLoading();
+            await addProposal({
+                clientName: document.getElementById('proposal-client-name').value.trim(),
+                clientCpf: document.getElementById('proposal-client-cpf').value.trim(),
+                clientPhone: document.getElementById('proposal-client-phone').value.trim(),
+                principalAmount: document.getElementById('proposal-amount').value,
+                dailyInterestRate: parseFloat(document.getElementById('proposal-rate').value) / 100,
+                notes: document.getElementById('proposal-notes').value.trim(),
+                vendedorName
+            });
+            if (window.hideLoading) hideLoading();
+            if (window.showToast) showToast('Proposta enviada ao gestor! ✅', 'success');
+            location.hash = '#my-proposals';
+        } catch (err) {
+            if (window.hideLoading) hideLoading();
+            if (window.showToast) showToast('Erro: ' + err.message, 'error');
+        }
+    });
+};
+
+window.loadMyProposals = async function() {
+    const appDiv = document.getElementById('app');
+    appDiv.innerHTML = `<div class="loading-container"><div class="spinner"></div></div>`;
+
+    try {
+        const user = auth.currentUser;
+        const proposals = await getProposals({ vendedorId: user.uid });
+
+        appDiv.innerHTML = `
+            <div class="page-header"><h1>🧾 Minhas Propostas</h1></div>
+            <div id="my-proposals-list">
+                ${proposals.length === 0 ? (window.emptyState ? window.emptyState('🧾', 'Nenhuma proposta ainda', 'Envie sua primeira proposta de crédito', '+ Nova Proposta', '#new-proposal') : '<p>Nenhuma proposta</p>') :
+                    proposals.map(p => `
+                        <div class="card" style="margin:8px 0;padding:16px;">
+                            <div style="display:flex;justify-content:space-between;align-items:center;">
+                                <strong>👤 ${p.clientName}</strong>
+                                ${window.proposalStatusBadge(p.status)}
+                            </div>
+                            <small>${formatarMoeda(p.principalAmount)} • ${(p.dailyInterestRate * 100).toFixed(2)}%/dia</small>
+                            ${p.notes ? `<br><small style="color:var(--text-light);">${p.notes}</small>` : ''}
+                            ${p.status === 'rejected' && p.rejectReason ? `<br><small style="color:var(--danger);">Motivo: ${p.rejectReason}</small>` : ''}
+                        </div>
+                    `).join('')}
+            </div>
+            <div style="margin:16px 0 100px;">
+                <button class="btn btn-accent btn-block" onclick="location.hash='#new-proposal'">➕ Nova Proposta</button>
+            </div>
+        `;
+    } catch (error) {
+        appDiv.innerHTML = `<div class="empty-state">Erro: ${error.message}</div>`;
+    }
+};
+
+// ===== ADMIN: PROPOSTAS DE VENDEDORES =====
+
+window.loadProposals = async function() {
+    const appDiv = document.getElementById('app');
+    appDiv.innerHTML = `<div class="loading-container"><div class="spinner"></div></div>`;
+
+    try {
+        const proposals = await getProposals();
+        const pending = proposals.filter(p => p.status === 'pending');
+        const resolved = proposals.filter(p => p.status !== 'pending');
+
+        appDiv.innerHTML = `
+            <div class="page-header" style="display:flex; justify-content:space-between; align-items:center;">
+                 <button onclick="history.back()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;">← Voltar</button>
+                 <h2>🧾 Propostas de Vendedores</h2>
+            </div>
+
+            <h3 class="mt-2 mb-2">⏳ Pendentes (${pending.length})</h3>
+            <div id="pending-proposals-list">
+                ${pending.length === 0 ? '<p style="color:var(--text-light);">Nenhuma proposta pendente.</p>' :
+                    pending.map(p => `
+                        <div class="card" style="margin:8px 0;padding:16px;">
+                            <strong>👤 ${p.clientName}</strong> <small>(via ${p.vendedorName || 'vendedor'})</small><br>
+                            <small>${formatarMoeda(p.principalAmount)} • ${(p.dailyInterestRate * 100).toFixed(2)}%/dia</small>
+                            ${p.notes ? `<br><small style="color:var(--text-light);">${p.notes}</small>` : ''}
+                            <div style="display:flex;gap:12px;margin-top:12px;">
+                                <button class="btn btn-success btn-block" data-approve="${p.id}">✅ Aprovar</button>
+                                <button class="btn btn-outline btn-block" data-reject="${p.id}">❌ Rejeitar</button>
+                            </div>
+                        </div>
+                    `).join('')}
+            </div>
+
+            <h3 class="mt-3 mb-2">📜 Histórico</h3>
+            <div id="resolved-proposals-list" style="margin-bottom:100px;">
+                ${resolved.length === 0 ? '<p style="color:var(--text-light);">Sem propostas analisadas ainda.</p>' :
+                    resolved.map(p => `
+                        <div class="card" style="margin:8px 0;padding:16px;">
+                            <div style="display:flex;justify-content:space-between;align-items:center;">
+                                <strong>👤 ${p.clientName}</strong>
+                                ${window.proposalStatusBadge(p.status)}
+                            </div>
+                            <small>${formatarMoeda(p.principalAmount)} • via ${p.vendedorName || 'vendedor'}</small>
+                        </div>
+                    `).join('')}
+            </div>
+        `;
+
+        appDiv.querySelectorAll('[data-approve]').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                if (!confirm('Aprovar esta proposta e criar o empréstimo?')) return;
+                try {
+                    if (window.showLoading) showLoading();
+                    await approveProposal(btn.getAttribute('data-approve'));
+                    if (window.hideLoading) hideLoading();
+                    if (window.showToast) showToast('Proposta aprovada! Empréstimo criado. ✅', 'success');
+                    await window.loadProposals();
+                } catch (err) {
+                    if (window.hideLoading) hideLoading();
+                    if (window.showToast) showToast('Erro: ' + err.message, 'error');
+                }
+            });
+        });
+
+        appDiv.querySelectorAll('[data-reject]').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const reason = prompt('Motivo da rejeição (opcional):') || '';
+                try {
+                    if (window.showLoading) showLoading();
+                    await rejectProposal(btn.getAttribute('data-reject'), reason);
+                    if (window.hideLoading) hideLoading();
+                    if (window.showToast) showToast('Proposta rejeitada.', 'success');
+                    await window.loadProposals();
+                } catch (err) {
+                    if (window.hideLoading) hideLoading();
+                    if (window.showToast) showToast('Erro: ' + err.message, 'error');
+                }
+            });
+        });
+    } catch (error) {
+        appDiv.innerHTML = `<div class="empty-state">Erro: ${error.message}</div>`;
     }
 };

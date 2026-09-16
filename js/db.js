@@ -401,3 +401,92 @@ async function getLastReminder(loanId) {
     const reminders = await getReminders(loanId);
     return reminders.length > 0 ? reminders[0] : null;
 }
+
+// ==========================================
+// PROPOSTAS (VENDEDOR -> GESTOR)
+// ==========================================
+async function addProposal(data) {
+    const vendedor = auth.currentUser;
+    const docRef = await db.collection('proposals').add({
+        clientName: data.clientName,
+        clientCpf: data.clientCpf || '',
+        clientPhone: data.clientPhone || '',
+        principalAmount: parseFloat(data.principalAmount),
+        dailyInterestRate: parseFloat(data.dailyInterestRate),
+        notes: data.notes || '',
+        status: 'pending',
+        vendedorId: vendedor ? vendedor.uid : '',
+        vendedorName: data.vendedorName || '',
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    if (typeof addLog === 'function') {
+        let format = typeof window.formatarMoeda === 'function' ? window.formatarMoeda(data.principalAmount) : data.principalAmount;
+        await addLog('proposal_created', `Enviou proposta de ${format} para ${data.clientName}`, docRef.id);
+    }
+    return docRef.id;
+}
+
+async function getProposals(filters = {}) {
+    const snapshot = await db.collection('proposals').get();
+    let proposals = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+    proposals.sort((a, b) => {
+        const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0);
+        const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0);
+        return dateB - dateA;
+    });
+
+    if (filters.status) proposals = proposals.filter(p => p.status === filters.status);
+    if (filters.vendedorId) proposals = proposals.filter(p => p.vendedorId === filters.vendedorId);
+
+    return proposals;
+}
+
+async function approveProposal(proposalId) {
+    const doc = await db.collection('proposals').doc(proposalId).get();
+    if (!doc.exists) throw new Error('Proposta não encontrada');
+    const proposal = doc.data();
+    if (proposal.status !== 'pending') throw new Error('Esta proposta já foi analisada');
+
+    const adminUser = auth.currentUser;
+    const clientRef = await db.collection('users').add({
+        name: proposal.clientName,
+        cpf: proposal.clientCpf || '',
+        phone: proposal.clientPhone || '',
+        role: 'client',
+        createdBy: 'proposal:' + proposalId,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    const loanId = await addLoan({
+        clientId: clientRef.id,
+        clientName: proposal.clientName,
+        principalAmount: proposal.principalAmount,
+        dailyInterestRate: proposal.dailyInterestRate,
+        startDate: new Date().toISOString(),
+        notes: proposal.notes
+    });
+
+    await db.collection('proposals').doc(proposalId).update({
+        status: 'approved',
+        clientId: clientRef.id,
+        loanId,
+        approvedBy: adminUser ? adminUser.uid : '',
+        approvedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    if (typeof addLog === 'function') {
+        await addLog('proposal_approved', `Aprovou proposta de ${proposal.clientName} e criou empréstimo`, proposalId);
+    }
+}
+
+async function rejectProposal(proposalId, reason = '') {
+    await db.collection('proposals').doc(proposalId).update({
+        status: 'rejected',
+        rejectReason: reason,
+        rejectedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    if (typeof addLog === 'function') {
+        await addLog('proposal_rejected', `Rejeitou proposta ${proposalId}`, proposalId);
+    }
+}

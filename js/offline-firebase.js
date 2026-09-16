@@ -287,15 +287,25 @@
     };
 
     // ---------------- Seed inicial (dados de demonstração) ----------------
+    function daysAgo(now, n) {
+        const d = new Date(now);
+        d.setDate(d.getDate() - n);
+        return d;
+    }
+
     function seedIfEmpty() {
         if (Object.keys(authUsers).length > 0) return;
 
         const now = new Date();
         const adminUid = 'admin-demo';
         const clientUid = 'cliente-demo';
+        const client2Uid = 'cliente2-demo';
+        const vendedorUid = 'vendedor-demo';
 
         authUsers['admin@admin.com'] = { email: 'admin@admin.com', password: 'admin123', uid: adminUid };
         authUsers['cliente@cliente.com'] = { email: 'cliente@cliente.com', password: 'cliente123', uid: clientUid };
+        authUsers['cliente2@cliente.com'] = { email: 'cliente2@cliente.com', password: 'cliente123', uid: client2Uid };
+        authUsers['vendedor@vendedor.com'] = { email: 'vendedor@vendedor.com', password: 'vendedor123', uid: vendedorUid };
         saveAuthUsers();
 
         store.collections.users = {
@@ -303,6 +313,13 @@
             [clientUid]: {
                 name: 'Cliente Teste', email: 'cliente@cliente.com', cpf: '123.456.789-00',
                 phone: '11999999999', role: 'client', createdAt: makeTimestamp(now)
+            },
+            [client2Uid]: {
+                name: 'Maria Souza', email: 'cliente2@cliente.com', cpf: '987.654.321-00',
+                phone: '11988887777', role: 'client', createdAt: makeTimestamp(daysAgo(now, 40))
+            },
+            [vendedorUid]: {
+                name: 'Vendedor Demo', email: 'vendedor@vendedor.com', role: 'vendedor', createdAt: makeTimestamp(daysAgo(now, 15))
             }
         };
 
@@ -310,30 +327,78 @@
             general: { companyName: 'CerraLoan', companyPhone: '62999999999', defaultDailyRate: 0.005 }
         };
 
-        const loanId = genId('loan');
-        const startDate = new Date(now);
-        startDate.setDate(startDate.getDate() - 25);
+        // Cliente 1: emprestimo ativo com um pagamento parcial
+        const loan1Id = genId('loan');
+        const loan1Start = daysAgo(now, 25);
+        // Cliente 2: um emprestimo ja quitado + um ativo em atraso (sem pagamentos)
+        const loan2Id = genId('loan');
+        const loan2Start = daysAgo(now, 45);
+        const loan3Id = genId('loan');
+        const loan3Start = daysAgo(now, 35);
 
         store.collections.loans = {
-            [loanId]: {
+            [loan1Id]: {
                 clientId: clientUid, clientName: 'Cliente Teste', principalAmount: 1000,
-                dailyInterestRate: 0.005, startDate: startDate.toISOString(), status: 'active',
-                notes: 'Empréstimo de demonstração', createdBy: adminUid, createdAt: makeTimestamp(startDate)
+                dailyInterestRate: 0.005, startDate: loan1Start.toISOString(), status: 'active',
+                notes: 'Empréstimo de demonstração', createdBy: adminUid, createdAt: makeTimestamp(loan1Start)
+            },
+            [loan2Id]: {
+                clientId: client2Uid, clientName: 'Maria Souza', principalAmount: 500,
+                dailyInterestRate: 0.005, startDate: loan2Start.toISOString(), status: 'paid',
+                notes: 'Empréstimo já quitado', createdBy: adminUid, createdAt: makeTimestamp(loan2Start)
+            },
+            [loan3Id]: {
+                clientId: client2Uid, clientName: 'Maria Souza', principalAmount: 800,
+                dailyInterestRate: 0.006, startDate: loan3Start.toISOString(), status: 'active',
+                notes: 'Empréstimo em atraso (sem pagamentos)', createdBy: adminUid, createdAt: makeTimestamp(loan3Start)
             }
         };
 
-        const paymentId = genId('pay');
-        const paymentDate = new Date(now);
-        paymentDate.setDate(paymentDate.getDate() - 10);
+        const pay1Id = genId('pay');
+        const pay1Date = daysAgo(now, 10);
+        store.collections['loans/' + loan1Id + '/payments'] = {
+            [pay1Id]: { amount: 300, date: pay1Date.toISOString(), type: 'partial', registeredBy: adminUid, createdAt: makeTimestamp(pay1Date) }
+        };
 
-        store.collections['loans/' + loanId + '/payments'] = {
-            [paymentId]: { amount: 300, date: paymentDate.toISOString(), type: 'partial', registeredBy: adminUid, createdAt: makeTimestamp(paymentDate) }
+        // Quitacao total do emprestimo 2 (principal + juros simples de 45 dias a 0.5%/dia)
+        const pay2Id = genId('pay');
+        const pay2Date = daysAgo(now, 2);
+        const loan2Total = Math.round(500 * (1 + 0.005 * 43) * 100) / 100;
+        store.collections['loans/' + loan2Id + '/payments'] = {
+            [pay2Id]: { amount: loan2Total, date: pay2Date.toISOString(), type: 'full', registeredBy: adminUid, createdAt: makeTimestamp(pay2Date) }
+        };
+
+        // Propostas de credito enviadas pelo vendedor para o gestor aprovar
+        const proposal1Id = genId('prop');
+        const proposal2Id = genId('prop');
+        const proposal3Id = genId('prop');
+        store.collections.proposals = {
+            [proposal1Id]: {
+                clientName: 'Carlos Prospect', clientCpf: '111.222.333-44', clientPhone: '11977776666',
+                principalAmount: 1200, dailyInterestRate: 0.006, notes: 'Cliente indicado por Maria Souza',
+                status: 'pending', vendedorId: vendedorUid, vendedorName: 'Vendedor Demo',
+                createdAt: makeTimestamp(daysAgo(now, 1))
+            },
+            [proposal2Id]: {
+                clientName: 'Fernanda Lima', clientCpf: '222.333.444-55', clientPhone: '11966665555',
+                principalAmount: 600, dailyInterestRate: 0.005, notes: '',
+                status: 'approved', vendedorId: vendedorUid, vendedorName: 'Vendedor Demo',
+                createdAt: makeTimestamp(daysAgo(now, 8)), approvedBy: adminUid, approvedAt: makeTimestamp(daysAgo(now, 7))
+            },
+            [proposal3Id]: {
+                clientName: 'Roberto Alves', clientCpf: '333.444.555-66', clientPhone: '11955554444',
+                principalAmount: 3000, dailyInterestRate: 0.008, notes: 'Valor solicitado muito alto',
+                status: 'rejected', rejectReason: 'Score de crédito baixo', vendedorId: vendedorUid, vendedorName: 'Vendedor Demo',
+                createdAt: makeTimestamp(daysAgo(now, 12))
+            }
         };
 
         saveStore();
         console.log('%c[CerraLoan] Modo offline: dados de demonstração criados.', 'color:#16a34a');
         console.log('[CerraLoan] Login admin: admin@admin.com / admin123');
-        console.log('[CerraLoan] Login cliente: cliente@cliente.com / cliente123');
+        console.log('[CerraLoan] Login cliente 1: cliente@cliente.com / cliente123');
+        console.log('[CerraLoan] Login cliente 2: cliente2@cliente.com / cliente123');
+        console.log('[CerraLoan] Login vendedor: vendedor@vendedor.com / vendedor123');
     }
     seedIfEmpty();
 

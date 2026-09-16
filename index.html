@@ -51,6 +51,22 @@
             <span class="nav-label">Perfil</span>
         </a>
     </nav>
+
+    <!-- Nav bar do VENDEDOR (3 itens) -->
+    <nav id="vendedor-nav" class="bottom-nav" style="display:none;">
+        <a href="#vendedor-dashboard" class="nav-item" data-route="vendedor-dashboard">
+            <span class="nav-icon">🏠</span>
+            <span class="nav-label">Início</span>
+        </a>
+        <a href="#new-proposal" class="nav-item" data-route="new-proposal">
+            <span class="nav-icon">🆕</span>
+            <span class="nav-label">Nova Proposta</span>
+        </a>
+        <a href="#my-proposals" class="nav-item" data-route="my-proposals">
+            <span class="nav-icon">🧾</span>
+            <span class="nav-label">Propostas</span>
+        </a>
+    </nav>
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {

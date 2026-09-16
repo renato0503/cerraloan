@@ -162,7 +162,8 @@ html, body {
     border-color: var(--accent);
 }
 
-.stat-grid {
+.stat-grid,
+.stats-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     gap: 12px;
@@ -553,4 +554,84 @@ html, body {
 
 [data-theme="dark"] .stat-card {
     background: #1a1a2e;
+}
+
+/* --primary/--secondary ficam escuros demais no tema dark; usa --text para manter contraste */
+[data-theme="dark"] .stat-value,
+[data-theme="dark"] .login-title {
+    color: var(--text);
+}
+
+[data-theme="dark"] .btn-outline {
+    color: var(--text);
+    border-color: var(--text-light);
+}
+
+/* ==========================================
+   VERSAO DESKTOP (>=900px): navegacao lateral fixa
+   + area de conteudo mais larga, mantendo o mobile intacto.
+   ========================================== */
+@media (min-width: 900px) {
+    body {
+        background: var(--bg);
+        padding-bottom: 0;
+    }
+
+    #app {
+        max-width: 1100px;
+        width: calc(100% - 240px);
+        margin: 0 0 0 240px;
+        padding: 32px 40px 48px;
+        min-height: 100vh;
+    }
+
+    .bottom-nav {
+        top: 0;
+        bottom: 0;
+        left: 0;
+        right: auto;
+        width: 220px;
+        height: 100vh;
+        max-width: none;
+        transform: none;
+        border-radius: 0;
+        flex-direction: column;
+        justify-content: flex-start;
+        align-items: stretch;
+        gap: 4px;
+        padding: 32px 12px;
+        box-shadow: 2px 0 10px rgba(0,0,0,0.06);
+    }
+
+    .nav-item {
+        flex-direction: row;
+        justify-content: flex-start;
+        gap: 12px;
+        padding: 12px 16px;
+        border-radius: 12px;
+        font-size: 0.95rem;
+    }
+
+    .nav-item.active {
+        background: rgba(233, 69, 96, 0.12);
+    }
+
+    .nav-icon {
+        margin-bottom: 0;
+        font-size: 1.3rem;
+    }
+
+    .nav-label {
+        font-size: 0.95rem;
+    }
+
+    .stat-grid,
+    .stats-grid,
+    .dashboard-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+
+    .login-container {
+        min-height: 100vh;
+    }
 }

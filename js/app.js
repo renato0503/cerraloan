@@ -10,31 +10,55 @@ if (savedTheme) {
 }
 
 // Rotas exclusivas de admin
-const ADMIN_ROUTES = ['#dashboard', '#clients', '#new-client', '#client-detail', 
-                       '#loans', '#new-loan', '#loan-detail', '#settings'];
+const ADMIN_ROUTES = ['#dashboard', '#clients', '#new-client', '#client-detail',
+                       '#loans', '#new-loan', '#loan-detail', '#settings', '#proposals'];
 
 // Rotas exclusivas de cliente
 const CLIENT_ROUTES = ['#my-loans', '#my-loan-detail', '#profile', '#request-loan'];
 
+// Rotas exclusivas de vendedor
+const VENDEDOR_ROUTES = ['#vendedor-dashboard', '#new-proposal', '#my-proposals'];
+
 function showAdminNav() {
     const adminNav = document.getElementById('admin-nav');
     const clientNav = document.getElementById('client-nav');
+    const vendedorNav = document.getElementById('vendedor-nav');
     if (adminNav) adminNav.style.display = 'flex';
     if (clientNav) clientNav.style.display = 'none';
+    if (vendedorNav) vendedorNav.style.display = 'none';
 }
 
 function showClientNav() {
     const adminNav = document.getElementById('admin-nav');
     const clientNav = document.getElementById('client-nav');
+    const vendedorNav = document.getElementById('vendedor-nav');
     if (adminNav) adminNav.style.display = 'none';
     if (clientNav) clientNav.style.display = 'flex';
+    if (vendedorNav) vendedorNav.style.display = 'none';
+}
+
+function showVendedorNav() {
+    const adminNav = document.getElementById('admin-nav');
+    const clientNav = document.getElementById('client-nav');
+    const vendedorNav = document.getElementById('vendedor-nav');
+    if (adminNav) adminNav.style.display = 'none';
+    if (clientNav) clientNav.style.display = 'none';
+    if (vendedorNav) vendedorNav.style.display = 'flex';
 }
 
 function hideNav() {
     const adminNav = document.getElementById('admin-nav');
     const clientNav = document.getElementById('client-nav');
+    const vendedorNav = document.getElementById('vendedor-nav');
     if (adminNav) adminNav.style.display = 'none';
     if (clientNav) clientNav.style.display = 'none';
+    if (vendedorNav) vendedorNav.style.display = 'none';
+}
+
+function homeRouteForRole(role) {
+    if (role === 'admin') return '#dashboard';
+    if (role === 'vendedor') return '#vendedor-dashboard';
+    return '#my-loans';
 }
 
 // Highlight do item ativo na nav
@@ -59,18 +83,15 @@ async function navigateTo(hash) {
     
     if (user) {
         const role = await getUserRole(user.uid);
-        
-        // Cliente tentando acessar rota de admin → bloqueia
-        if (role === 'client' && ADMIN_ROUTES.includes(route)) {
-            console.warn('Cliente bloqueado de rota admin:', route);
-            location.hash = '#my-loans';
-            return;
-        }
-        
-        // Admin tentando acessar rota de cliente → redireciona
-        if (role === 'admin' && CLIENT_ROUTES.includes(route)) {
-            console.warn('Admin redirecionado de rota cliente:', route);
-            location.hash = '#dashboard';
+        const isOwnRoute = (role === 'admin' && ADMIN_ROUTES.includes(route)) ||
+                            (role === 'client' && CLIENT_ROUTES.includes(route)) ||
+                            (role === 'vendedor' && VENDEDOR_ROUTES.includes(route));
+        const isRestrictedRoute = ADMIN_ROUTES.includes(route) || CLIENT_ROUTES.includes(route) || VENDEDOR_ROUTES.includes(route);
+
+        // Usuário tentando acessar rota de outro papel → bloqueia
+        if (isRestrictedRoute && !isOwnRoute) {
+            console.warn(`${role} bloqueado de rota:`, route);
+            location.hash = homeRouteForRole(role);
             return;
         }
     }
@@ -94,14 +115,22 @@ async function navigateTo(hash) {
         case '#my-loan-detail':  typeof loadMyLoanDetail === 'function' && await loadMyLoanDetail(); break;
         case '#profile':         typeof loadProfile === 'function' && await loadProfile(); break;
         case '#request-loan':    typeof loadRequestLoan === 'function' && await loadRequestLoan(); break;
-        
+
+        // Vendedor
+        case '#vendedor-dashboard': typeof loadVendedorDashboard === 'function' && await loadVendedorDashboard(); break;
+        case '#new-proposal':       typeof loadNewProposal === 'function' && await loadNewProposal(); break;
+        case '#my-proposals':       typeof loadMyProposals === 'function' && await loadMyProposals(); break;
+
+        // Admin - propostas de vendedores
+        case '#proposals':          typeof loadProposals === 'function' && await loadProposals(); break;
+
         // Compartilhado
         case '#login':           typeof loadLoginPage === 'function' && loadLoginPage(); break;
-        
+
         default:
             if (user) {
                 const role = await getUserRole(user.uid);
-                location.hash = role === 'admin' ? '#dashboard' : '#my-loans';
+                location.hash = homeRouteForRole(role);
             } else {
                 location.hash = '#login';
             }
@@ -172,9 +201,16 @@ if (typeof auth !== 'undefined' && typeof db !== 'undefined') {
             } else if (role === 'client') {
                 if(typeof showClientNav === 'function') showClientNav(); else updateNav(getRoute());
                 if(typeof hideLoading === 'function') hideLoading();
-                if (!location.hash || location.hash === '#' || 
+                if (!location.hash || location.hash === '#' ||
                     location.hash === '#login') {
                     location.hash = '#my-loans';
+                }
+            } else if (role === 'vendedor') {
+                if(typeof showVendedorNav === 'function') showVendedorNav(); else updateNav(getRoute());
+                if(typeof hideLoading === 'function') hideLoading();
+                if (!location.hash || location.hash === '#' ||
+                    location.hash === '#login') {
+                    location.hash = '#vendedor-dashboard';
                 }
             } else {
                 console.error('❌ Role não encontrada para:', user.uid);

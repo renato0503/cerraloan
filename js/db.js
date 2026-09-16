@@ -172,6 +172,34 @@ async function updateLoanStatus(id, status) {
     if (typeof addLog === 'function') await addLog('status_changed', `Alterou status do empréstimo ${id} para ${status}`, id);
 }
 
+// Renegociação de dívida (Sprint 11 do roadmap): fecha o empréstimo atual como
+// "renegotiated" e abre um novo contrato vinculado a ele (renegotiatedFrom).
+async function renegotiateLoan(loanId, { newPrincipal, newDailyRate, newStartDate, motivo }) {
+    const { loan } = await getLoan(loanId);
+    if (loan.status !== 'active') throw new Error('Só é possível renegociar um empréstimo ativo');
+
+    const principal = newPrincipal != null ? parseFloat(newPrincipal) : loan.currentBalance;
+
+    const newLoanId = await addLoan({
+        clientId: loan.clientId,
+        clientName: loan.clientName,
+        principalAmount: principal,
+        dailyInterestRate: newDailyRate != null ? parseFloat(newDailyRate) : loan.dailyInterestRate,
+        startDate: newStartDate || new Date().toISOString(),
+        notes: motivo || `Renegociação do empréstimo anterior (${loanId})`
+    });
+
+    await db.collection('loans').doc(newLoanId).update({ renegotiatedFrom: loanId });
+    await db.collection('loans').doc(loanId).update({
+        status: 'renegotiated', renegotiatedTo: newLoanId
+    });
+
+    if (typeof addLog === 'function') {
+        await addLog('loan_renegotiated', `Renegociou empréstimo de ${loan.clientName}`, loanId);
+    }
+    return newLoanId;
+}
+
 async function addPayment(loanId, data) {
     const adminUser = auth.currentUser;
 
@@ -209,6 +237,30 @@ async function getPayments(loanId) {
     });
     
     return payments;
+}
+
+// Sugere quais empréstimos ativos já passaram do prazo configurado sem pagamento
+// (regra automática de cobrança - Sprint 10 do roadmap).
+async function getCobrancasSugeridas() {
+    const settings = await getSettings();
+    const ruleDays = settings.reminderRuleDays || 5;
+    const loans = await getLoans({ status: 'active' });
+    const hoje = new Date();
+
+    const sugeridas = [];
+    for (const loan of loans) {
+        const payments = await getPayments(loan.id);
+        const ultimaData = payments.length > 0
+            ? payments.map(p => p.date?.toDate ? p.date.toDate() : new Date(p.date)).sort((a, b) => b - a)[0]
+            : (loan.startDate?.toDate ? loan.startDate.toDate() : new Date(loan.startDate));
+        const diasSemPagamento = diasEntre(ultimaData, hoje);
+        if (diasSemPagamento >= ruleDays) {
+            loan.diasSemPagamento = diasSemPagamento;
+            sugeridas.push(loan);
+        }
+    }
+    sugeridas.sort((a, b) => b.diasSemPagamento - a.diasSemPagamento);
+    return sugeridas;
 }
 
 async function getDashboardStats() {
@@ -403,6 +455,70 @@ async function getLastReminder(loanId) {
 }
 
 // ==========================================
+// HISTÓRICO DE SIMULAÇÕES (sinal de intenção de pagamento - Sprint 19 do roadmap)
+// ==========================================
+async function addSimulation(loanId, targetDate, saldoSimulado) {
+    return await db.collection('loans').doc(loanId).collection('simulations').add({
+        targetDate: targetDate.toISOString(),
+        saldoSimulado,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+}
+
+async function getSimulations(loanId) {
+    const snap = await db.collection('loans').doc(loanId).collection('simulations').get();
+    const simulations = [];
+    snap.forEach(doc => simulations.push({ id: doc.id, ...doc.data() }));
+    simulations.sort((a, b) => {
+        const da = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(0);
+        const db2 = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(0);
+        return db2 - da;
+    });
+    return simulations;
+}
+
+// ==========================================
+// COMPROVANTES DE PAGAMENTO ENVIADOS PELO CLIENTE (Sprint 19 do roadmap)
+// ==========================================
+async function addPaymentProof(loanId, data) {
+    return await db.collection('loans').doc(loanId).collection('proofs').add({
+        ...data,
+        status: 'pending',
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+}
+
+async function getPaymentProofs(loanId) {
+    const snap = await db.collection('loans').doc(loanId).collection('proofs').get();
+    const proofs = [];
+    snap.forEach(doc => proofs.push({ id: doc.id, ...doc.data() }));
+    proofs.sort((a, b) => {
+        const da = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(0);
+        const db2 = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(0);
+        return db2 - da;
+    });
+    return proofs;
+}
+
+async function confirmPaymentProof(loanId, proofId) {
+    const proofDoc = await db.collection('loans').doc(loanId).collection('proofs').doc(proofId).get();
+    if (!proofDoc.exists) throw new Error('Comprovante não encontrado');
+    const proof = proofDoc.data();
+
+    await addPayment(loanId, { amount: proof.amount, date: proof.date, type: proof.type || 'partial' });
+
+    await db.collection('loans').doc(loanId).collection('proofs').doc(proofId).update({
+        status: 'confirmed', confirmedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+}
+
+async function rejectPaymentProof(loanId, proofId, reason = '') {
+    await db.collection('loans').doc(loanId).collection('proofs').doc(proofId).update({
+        status: 'rejected', rejectReason: reason
+    });
+}
+
+// ==========================================
 // PROPOSTAS (VENDEDOR -> GESTOR)
 // ==========================================
 async function addProposal(data) {
@@ -467,10 +583,16 @@ async function approveProposal(proposalId) {
         notes: proposal.notes
     });
 
+    const settings = await getSettings();
+    const commissionRate = settings.commissionRate || 0;
+    const commissionAmount = Math.round(proposal.principalAmount * commissionRate * 100) / 100;
+
     await db.collection('proposals').doc(proposalId).update({
         status: 'approved',
         clientId: clientRef.id,
         loanId,
+        commissionRate,
+        commissionAmount,
         approvedBy: adminUser ? adminUser.uid : '',
         approvedAt: firebase.firestore.FieldValue.serverTimestamp()
     });

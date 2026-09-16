@@ -31,6 +31,7 @@ window.loadLoginPage = function() {
 // ===== HELPER: BADGES OTIMIZADOS =====
 window.getLoanStatusDisplay = function(loan) {
     if (loan.status === 'paid') return `<span class="list-item-badge badge-paid" style="background:rgba(0,184,148,0.15);color:var(--success);">${icon('check-circle')} Quitado</span>`;
+    if (loan.status === 'renegotiated') return `<span class="list-item-badge">${icon('refresh-cw')} Renegociado</span>`;
 
     const startDate = loan.startDate?.toDate ? loan.startDate.toDate() : new Date(loan.startDate);
     const dias = diasEntre(startDate, new Date());
@@ -39,6 +40,16 @@ window.getLoanStatusDisplay = function(loan) {
     if (dias > 30) return `<span class="list-item-badge badge-overdue" style="background:rgba(214,48,49,0.15);color:var(--danger);"><span class="status-dot"></span> Atrasado</span>`;
     if (dias > 15) return `<span class="list-item-badge badge-attention"><span class="status-dot"></span> Atenção</span>`;
     return `<span class="list-item-badge badge-active" style="background:rgba(0,184,148,0.15);color:var(--success);"><span class="status-dot"></span> Ativo</span>`;
+};
+
+// ===== HELPER: SCORE DE RISCO (Sprint 14 do roadmap) =====
+window.scoreBadge = function(score) {
+    if (!score || score.nivel === 'novo') {
+        return `<span class="list-item-badge">${icon('info')} ${score ? score.label : 'Sem histórico'}</span>`;
+    }
+    if (score.nivel === 'bom') return `<span class="list-item-badge badge-success" style="background:rgba(0,184,148,0.15);color:var(--success);"><span class="status-dot"></span> ${score.label}</span>`;
+    if (score.nivel === 'medio') return `<span class="list-item-badge badge-attention"><span class="status-dot"></span> ${score.label}</span>`;
+    return `<span class="list-item-badge badge-danger" style="background:rgba(214,48,49,0.15);color:var(--danger);"><span class="status-dot"></span> ${score.label}</span>`;
 };
 
 // ===== ADMIN VIEWS =====
@@ -53,8 +64,12 @@ window.loadDashboard = async function() {
        
         const userDoc = await window.db.collection('users').doc(user.uid).get();
         const userName = userDoc.exists ? userDoc.data().name : 'Admin';
+        const userRole = userDoc.exists ? userDoc.data().role : 'admin';
+        const isOperador = userRole === 'operador';
         const stats = await getDashboardStats();
         const pendingProposals = await getProposals({ status: 'pending' });
+        const cobrancasSugeridas = await getCobrancasSugeridas();
+        const dashboardSettings = await getSettings();
 
         appDiv.innerHTML = `
             <div class="page-header" style="display:flex;justify-content:space-between;align-items:center;">
@@ -62,11 +77,13 @@ window.loadDashboard = async function() {
                 <button onclick="handleLogout()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;" title="Sair">${icon('log-out')}</button>
             </div>
            
+            ${!isOperador ? `
             <div class="balance-card">
                 <div class="label">${icon('wallet')} Saldo Devedor Total Ativo</div>
                 <div class="amount">${formatarMoeda(stats.totalActiveBalance || 0)}</div>
             </div>
-           
+            ` : ''}
+
             <div class="stats-grid" style="margin-top:16px;">
                 <div class="stat-card">
                     <div class="stat-value">${stats.activeLoans || 0}</div>
@@ -80,12 +97,29 @@ window.loadDashboard = async function() {
                     <div class="stat-value">${stats.paidLoans || 0}</div>
                     <div class="stat-label">${icon('check-circle')} Quitados</div>
                 </div>
+                ${!isOperador ? `
                 <div class="stat-card">
                     <div class="stat-value">${formatarMoeda(stats.totalLent || 0)}</div>
                     <div class="stat-label">${icon('banknote')} Total Emprestado</div>
                 </div>
+                ` : ''}
             </div>
-           
+
+            ${cobrancasSugeridas.length > 0 ? `
+            <div class="card" style="margin:16px 0;padding:16px;border-left:4px solid var(--warning);">
+                <h4 style="margin-bottom:8px;">${icon('refresh-cw')} Cobranças Sugeridas Hoje (${cobrancasSugeridas.length})</h4>
+                <p style="font-size:0.8rem;color:var(--text-light);margin-bottom:12px;">
+                    Empréstimos sem pagamento há mais de ${dashboardSettings.reminderRuleDays || 5} dias.
+                </p>
+                ${cobrancasSugeridas.slice(0, 5).map(l => `
+                    <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(0,0,0,0.06);cursor:pointer;" onclick="location.hash='#loan-detail?id=${l.id}'">
+                        <span>${icon('user')} ${l.clientName}</span>
+                        <small style="color:var(--danger);">${l.diasSemPagamento} dias</small>
+                    </div>
+                `).join('')}
+            </div>
+            ` : ''}
+
             <!-- GRÁFICOS (Chart.js) -->
             <div style="margin:24px 0;">
                 <h3>${icon('bar-chart')} Visão Geral</h3>
@@ -218,6 +252,12 @@ window.loadClients = async function() {
    
     try {
         const clients = await getClients();
+        const allLoans = await getLoans();
+        const loansByClient = {};
+        for (const l of allLoans) {
+            (loansByClient[l.clientId] = loansByClient[l.clientId] || []).push(l);
+        }
+
         appDiv.innerHTML = `
             <div class="page-header" style="display:flex;justify-content:space-between;align-items:center;">
                 <div><h1>${icon('users')} Clientes</h1></div>
@@ -231,20 +271,26 @@ window.loadClients = async function() {
                 <button class="btn btn-primary btn-block" onclick="location.hash='#new-client'">${icon('plus')} Novo Cliente</button>
             </div>
         `;
-       
+
         const renderList = (list) => {
             const listEl = document.getElementById('clients-list');
             if (list.length === 0) {
                 listEl.innerHTML = window.emptyState ? window.emptyState('users', 'Nenhum cliente cadastrado', 'Cadastre seu primeiro cliente', '+ Novo Cliente', '#new-client') : '<p>Nenhum cliente</p>';
                 return;
             }
-            listEl.innerHTML = list.map(c => `
+            listEl.innerHTML = list.map(c => {
+                const score = calcularScoreCliente(loansByClient[c.id] || []);
+                return `
                 <div class="card" style="margin:8px 0;padding:16px;cursor:pointer;" onclick="location.hash='#client-detail?id=${c.id}'">
-                    <strong>${icon('user')} ${c.name}</strong><br>
+                    <div style="display:flex;justify-content:space-between;align-items:center;">
+                        <strong>${icon('user')} ${c.name}</strong>
+                        ${window.scoreBadge(score)}
+                    </div>
                     <small>CPF: ${c.cpf || 'N/A'}</small><br>
                     <small>${icon('phone')} ${c.phone || 'N/A'}</small>
                 </div>
-            `).join('');
+            `;
+            }).join('');
         };
         renderList(clients);
        
@@ -319,7 +365,10 @@ window.loadClientDetail = async function() {
                  <h2>${icon('user')} Detalhes do Cliente</h2>
             </div>
             <div class="card">
-                <h3>${client.name}</h3>
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <h3>${client.name}</h3>
+                    ${window.scoreBadge(calcularScoreCliente(loans))}
+                </div>
                 <p>CPF: ${client.cpf || '-'}</p>
                 <p>Email: ${client.email || '-'}</p>
                 <p>Telefone: ${client.phone || '-'}</p>
@@ -443,11 +492,44 @@ window.loadLoanDetail = async function() {
                  <p>Original: R$ ${loan.principalAmount}</p>
                  <p>Saldo Devedor Hoje: <strong>R$ ${loan.currentBalance}</strong></p>
                  <p>Status: ${window.getLoanStatusDisplay(loan)}</p>
+                 ${loan.status === 'active' ? `<button class="btn btn-outline btn-block mt-2" id="btn-toggle-renegociar">${icon('refresh-cw')} Renegociar Dívida</button>` : ''}
+                 ${loan.status === 'renegotiated' ? `<p style="font-size:0.85rem;color:var(--text-light);margin-top:8px;"><a href="#loan-detail?id=${loan.renegotiatedTo}">Ver novo contrato ${icon('arrow-right')}</a></p>` : ''}
             </div>
-           
+
+            <div class="card" id="renegociar-form-card" style="display:none;">
+                <h4 style="margin-bottom:8px;">${icon('refresh-cw')} Renegociar Dívida</h4>
+                <p style="font-size:0.8rem;color:var(--text-light);margin-bottom:12px;">
+                    Fecha este empréstimo e cria um novo contrato vinculado, a partir do
+                    saldo devedor de hoje (R$ ${loan.currentBalance}).
+                </p>
+                <div class="input-group"><label>Novo Valor (R$)</label><input type="number" id="reneg-amount" step="0.01" value="${loan.currentBalance}"></div>
+                <div class="input-group"><label>Nova Taxa Diária (%)</label><input type="number" id="reneg-rate" step="0.01" value="${(loan.dailyInterestRate * 100).toFixed(2)}"></div>
+                <div class="input-group"><label>Motivo</label><input type="text" id="reneg-motivo" placeholder="Ex: cliente pediu mais prazo"></div>
+                <button class="btn btn-primary btn-block" id="btn-confirmar-renegociar">Confirmar Renegociação</button>
+            </div>
+
             <!-- COBRANÇA WHATSAPP -->
             <div id="whatsapp-section"></div>
-           
+
+            <!-- COBRANÇA PIX (ilustrativo) -->
+            <div class="card">
+                <h4 style="margin-bottom:8px;">Cobrança via Pix</h4>
+                <button class="btn btn-outline btn-block" id="btn-gerar-pix">Gerar Cobrança Pix</button>
+                <div id="pix-section" style="margin-top:12px;"></div>
+            </div>
+
+            <!-- COMPROVANTES ENVIADOS PELO CLIENTE -->
+            <div class="card">
+                <h4 style="margin-bottom:8px;">${icon('file-text')} Comprovantes do Cliente</h4>
+                <div id="proofs-list"><p style="color:var(--text-light);font-size:0.85rem;">Carregando...</p></div>
+            </div>
+
+            <!-- ÚLTIMAS SIMULAÇÕES (sinal de intenção de pagamento) -->
+            <div class="card">
+                <h4 style="margin-bottom:8px;">${icon('calendar')} Últimas Simulações do Cliente</h4>
+                <div id="simulations-list"><p style="color:var(--text-light);font-size:0.85rem;">Carregando...</p></div>
+            </div>
+
             <div class="card">
                  <h3>Adicionar Pagamento</h3>
                  <div class="input-group"><input type="number" id="pay-amount" placeholder="Valor R$" step="0.01"></div>
@@ -460,7 +542,7 @@ window.loadLoanDetail = async function() {
                       <div class="card" style="margin:8px 0;padding:12px; display:flex; justify-content:space-between; align-items:center;">
                            <div>
                                <strong>R$ ${p.amount}</strong><br>
-                               <small>${new Date(p.date.seconds*1000).toLocaleDateString()}</small>
+                               <small>${formatarData(p.date?.toDate ? p.date.toDate() : new Date(p.date))}</small>
                            </div>
                            <button class="btn" style="padding:6px 12px;font-size:0.75rem;background:var(--secondary);color:white;"
                                    data-action="recibo" data-payment-index="${index}">
@@ -480,7 +562,101 @@ window.loadLoanDetail = async function() {
              const clientDoc = await db.collection('users').doc(loan.clientId).get();
              const clientPhone = clientDoc.exists ? clientDoc.data().phone : '';
              const clientName = loan.clientName || 'Cliente';
-            
+
+             document.getElementById('btn-toggle-renegociar')?.addEventListener('click', () => {
+                 const card = document.getElementById('renegociar-form-card');
+                 if (card) card.style.display = card.style.display === 'none' ? 'block' : 'none';
+             });
+
+             document.getElementById('btn-confirmar-renegociar')?.addEventListener('click', async () => {
+                 if (!confirm('Confirmar renegociação? O empréstimo atual será encerrado e um novo será criado.')) return;
+                 try {
+                     if (window.showLoading) showLoading();
+                     const newLoanId = await renegotiateLoan(id, {
+                         newPrincipal: document.getElementById('reneg-amount').value,
+                         newDailyRate: parseFloat(document.getElementById('reneg-rate').value) / 100,
+                         motivo: document.getElementById('reneg-motivo').value.trim()
+                     });
+                     if (window.hideLoading) hideLoading();
+                     if (window.showToast) showToast('Dívida renegociada! Novo contrato criado.', 'success');
+                     location.hash = `#loan-detail?id=${newLoanId}`;
+                 } catch (err) {
+                     if (window.hideLoading) hideLoading();
+                     if (window.showToast) showToast('Erro: ' + err.message, 'error');
+                 }
+             });
+
+             document.getElementById('btn-gerar-pix')?.addEventListener('click', async () => {
+                 const settings = await getSettings();
+                 window.abrirPix(loan.currentBalance, settings.companyName, 'pix-section');
+             });
+
+             // Comprovantes enviados pelo cliente
+             const proofs = await getPaymentProofs(id);
+             const proofsList = document.getElementById('proofs-list');
+             if (proofsList) {
+                 const pendingProofs = proofs.filter(p => p.status === 'pending');
+                 proofsList.innerHTML = proofs.length === 0
+                     ? '<p style="color:var(--text-light);font-size:0.85rem;">Nenhum comprovante enviado.</p>'
+                     : proofs.map(p => `
+                         <div class="card" style="margin:8px 0;padding:12px;background:var(--bg);">
+                             <div style="display:flex;justify-content:space-between;align-items:center;">
+                                 <strong>${formatarMoeda(p.amount)}</strong>
+                                 ${p.status === 'pending' ? `<span class="list-item-badge badge-attention">${icon('clock')} Pendente</span>` :
+                                   p.status === 'confirmed' ? `<span class="list-item-badge badge-success" style="background:rgba(0,184,148,0.15);color:var(--success);">${icon('check-circle')} Confirmado</span>` :
+                                   `<span class="list-item-badge badge-danger" style="background:rgba(214,48,49,0.15);color:var(--danger);">${icon('x-circle')} Rejeitado</span>`}
+                             </div>
+                             ${p.fileDataUrl ? `<img src="${p.fileDataUrl}" style="max-width:100%;max-height:160px;border-radius:8px;margin-top:8px;">` : ''}
+                             ${p.status === 'pending' ? `
+                                 <div style="display:flex;gap:8px;margin-top:8px;">
+                                     <button class="btn btn-success btn-block" data-confirm-proof="${p.id}">${icon('check-circle')} Confirmar</button>
+                                     <button class="btn btn-outline btn-block" data-reject-proof="${p.id}">${icon('x-circle')} Rejeitar</button>
+                                 </div>
+                             ` : ''}
+                         </div>
+                     `).join('');
+
+                 proofsList.querySelectorAll('[data-confirm-proof]').forEach(btn => {
+                     btn.addEventListener('click', async () => {
+                         try {
+                             if (window.showLoading) showLoading();
+                             await confirmPaymentProof(id, btn.getAttribute('data-confirm-proof'));
+                             if (window.hideLoading) hideLoading();
+                             if (window.showToast) showToast('Pagamento confirmado!', 'success');
+                             window.loadLoanDetail();
+                         } catch (err) {
+                             if (window.hideLoading) hideLoading();
+                             if (window.showToast) showToast('Erro: ' + err.message, 'error');
+                         }
+                     });
+                 });
+                 proofsList.querySelectorAll('[data-reject-proof]').forEach(btn => {
+                     btn.addEventListener('click', async () => {
+                         try {
+                             await rejectPaymentProof(id, btn.getAttribute('data-reject-proof'), '');
+                             if (window.showToast) showToast('Comprovante rejeitado.', 'success');
+                             window.loadLoanDetail();
+                         } catch (err) {
+                             if (window.showToast) showToast('Erro: ' + err.message, 'error');
+                         }
+                     });
+                 });
+             }
+
+             // Últimas simulações do cliente
+             const simulations = await getSimulations(id);
+             const simulationsList = document.getElementById('simulations-list');
+             if (simulationsList) {
+                 simulationsList.innerHTML = simulations.length === 0
+                     ? '<p style="color:var(--text-light);font-size:0.85rem;">O cliente ainda não simulou nenhuma quitação.</p>'
+                     : simulations.slice(0, 5).map(s => `
+                         <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(0,0,0,0.06);font-size:0.85rem;">
+                             <span>Quitar em ${formatarData(s.targetDate)}</span>
+                             <strong>${formatarMoeda(s.saldoSimulado)}</strong>
+                         </div>
+                     `).join('');
+             }
+
              const lastReminder = await getLastReminder(id);
              let lastReminderText = 'Nenhuma cobrança enviada ainda';
              if (lastReminder) {
@@ -589,10 +765,11 @@ window.loadLoanDetail = async function() {
 
 window.loadSettings = async function() {
     const appDiv = document.getElementById('app');
-   
+
     // Setup Dark Mode Checkbox state
     const currentTheme = localStorage.getItem('cerraloan-theme');
     const isDark = currentTheme === 'dark';
+    const settings = await getSettings();
 
     appDiv.innerHTML = `
         <div class="page-header" style="display:flex; justify-content:space-between; align-items:center;">
@@ -603,14 +780,45 @@ window.loadSettings = async function() {
         <div class="card">
             <h3>${icon('bar-chart')} Relatórios e Dados</h3>
             <p style="font-size:0.85rem;color:var(--text-light);margin-bottom:12px;">
-                Exporte os dados do sistema para análise.
+                Exporte os dados do sistema para análise. Deixe as datas em branco para
+                exportar tudo.
             </p>
-            <button class="btn btn-outline btn-block mb-1" onclick="window.gerarRelatorioPDF()">
+            <div style="display:flex;gap:8px;margin-bottom:12px;">
+                <div class="input-group" style="margin-bottom:0;flex:1;">
+                    <label>De</label>
+                    <input type="date" id="report-start-date">
+                </div>
+                <div class="input-group" style="margin-bottom:0;flex:1;">
+                    <label>Até</label>
+                    <input type="date" id="report-end-date">
+                </div>
+            </div>
+            <button class="btn btn-outline btn-block mb-1" onclick="window.gerarRelatorioPDF(window.getReportFiltro())">
                 ${icon('file-text')} Gerar Relatório Geral (PDF)
             </button>
-            <button class="btn btn-outline btn-block" onclick="window.exportarExcel()">
+            <button class="btn btn-outline btn-block" onclick="window.exportarExcel(window.getReportFiltro())">
                 ${icon('bar-chart')} Exportar Tudo (Excel)
             </button>
+        </div>
+
+        <!-- REGRAS AUTOMÁTICAS -->
+        <div class="card">
+            <h3>${icon('refresh-cw')} Regras Automáticas</h3>
+            <p style="font-size:0.85rem;color:var(--text-light);margin-bottom:12px;">
+                Usadas para sugerir cobranças no dashboard e calcular a comissão dos
+                vendedores quando uma proposta é aprovada.
+            </p>
+            <form id="rules-form">
+                <div class="input-group">
+                    <label>Sugerir cobrança após quantos dias sem pagamento</label>
+                    <input type="number" id="reminder-rule-days" min="1" value="${settings.reminderRuleDays || 5}">
+                </div>
+                <div class="input-group">
+                    <label>Comissão do vendedor (%) sobre o valor aprovado</label>
+                    <input type="number" id="commission-rate" min="0" step="0.1" value="${((settings.commissionRate || 0.03) * 100).toFixed(1)}">
+                </div>
+                <button type="submit" class="btn btn-primary btn-block">Salvar Regras</button>
+            </form>
         </div>
 
         <!-- AUDITORIA -->
@@ -627,7 +835,7 @@ window.loadSettings = async function() {
         <!-- PREFERÊNCIAS -->
         <div class="card">
              <h3>Preferências do Aplicativo</h3>
-            
+
              <div style="display:flex; justify-content:space-between; align-items:center; margin: 16px 0;">
                 <span>${icon('moon')} Modo Escuro</span>
                 <label class="switch" style="position:relative; display:inline-block; width:40px; height:24px;">
@@ -640,7 +848,7 @@ window.loadSettings = async function() {
                   </style>
                 </label>
              </div>
-            
+
              <button class="btn btn-danger btn-block mt-3" onclick="handleLogout()">Sair da Conta</button>
         </div>
         <div style="margin-bottom:100px;"></div>
@@ -654,6 +862,28 @@ window.loadSettings = async function() {
         } else {
             document.documentElement.removeAttribute('data-theme');
             localStorage.setItem('cerraloan-theme', 'light');
+        }
+    });
+
+    window.getReportFiltro = function() {
+        const start = document.getElementById('report-start-date')?.value || '';
+        const end = document.getElementById('report-end-date')?.value || '';
+        return { startDate: start || null, endDate: end || null };
+    };
+
+    document.getElementById('rules-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        try {
+            if (window.showLoading) showLoading();
+            await saveSettings({
+                reminderRuleDays: parseInt(document.getElementById('reminder-rule-days').value) || 5,
+                commissionRate: (parseFloat(document.getElementById('commission-rate').value) || 0) / 100
+            });
+            if (window.hideLoading) hideLoading();
+            if (window.showToast) showToast('Regras salvas!', 'success');
+        } catch (err) {
+            if (window.hideLoading) hideLoading();
+            if (window.showToast) showToast('Erro ao salvar: ' + err.message, 'error');
         }
     });
 
@@ -758,6 +988,10 @@ window.loadMyLoans = async function() {
             loans.push(loan);
         }
        
+        if (typeof checkVencimentoNotification === 'function') {
+            checkVencimentoNotification(loans).catch(() => {});
+        }
+
         // Ordenar: ativos primeiro, depois por data desc
         loans.sort((a, b) => {
             if (a.status === 'active' && b.status !== 'active') return -1;
@@ -1043,7 +1277,30 @@ window.loadMyLoanDetail = async function() {
                     </div>
                 </div>
             `}
-           
+
+            ${!isQuitado ? `
+            <div class="card" style="margin:16px 0;padding:16px;">
+                <h4 style="margin-bottom:8px;">Pagar com Pix</h4>
+                <button class="btn btn-accent btn-block" id="btn-gerar-pix-cliente">Gerar Cobrança Pix</button>
+                <div id="pix-section-cliente" style="margin-top:12px;"></div>
+            </div>
+
+            <div class="card" style="margin:16px 0;padding:16px;">
+                <h4 style="margin-bottom:8px;">${icon('file-text')} Enviar Comprovante de Pagamento</h4>
+                <p style="font-size:0.8rem;color:var(--text-light);margin-bottom:12px;">
+                    Já pagou? Anexe o comprovante para o gestor confirmar o pagamento.
+                </p>
+                <div class="input-group"><label>Valor Pago (R$)</label><input type="number" id="proof-amount" step="0.01" min="0.01"></div>
+                <div class="input-group">
+                    <label>Comprovante (imagem)</label>
+                    <input type="file" id="proof-file" accept="image/*" style="display:none;">
+                    <button type="button" class="btn btn-outline btn-block" onclick="document.getElementById('proof-file').click()">Escolher Arquivo</button>
+                    <small id="proof-file-label" style="color:var(--text-light);">Nenhum arquivo selecionado</small>
+                </div>
+                <button class="btn btn-primary btn-block" id="btn-send-proof">Enviar Comprovante</button>
+            </div>
+            ` : ''}
+
             <!-- DADOS DO EMPRÉSTIMO -->
             <div class="card" style="margin:16px 0;padding:16px;">
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
@@ -1162,6 +1419,11 @@ window.loadMyLoanDetail = async function() {
             <div style="height:80px;"></div>
         `;
        
+        document.getElementById('btn-gerar-pix-cliente')?.addEventListener('click', async () => {
+            const settings = await getSettings();
+            window.abrirPix(saldoHoje, settings.companyName, 'pix-section-cliente');
+        });
+
         // Event listener do simulador
         document.getElementById('btn-simulate')?.addEventListener('click', () => {
             const dateInput = document.getElementById('simulate-date');
@@ -1184,9 +1446,54 @@ window.loadMyLoanDetail = async function() {
             document.getElementById('sim-value').textContent = formatarMoeda(simSaldo);
             document.getElementById('sim-diff').innerHTML = diferenca > 0
                 ? `${icon('alert-triangle')} <strong>${formatarMoeda(diferenca)}</strong> a mais que hoje!`
-                : diferenca < 0 
+                : diferenca < 0
                     ? `${icon('check-circle')} <strong>${formatarMoeda(Math.abs(diferenca))}</strong> a menos que hoje`
                     : `Mesmo valor de hoje`;
+
+            addSimulation(loanId, targetDate, simSaldo).catch(err => console.error('Erro ao salvar simulação:', err));
+        });
+
+        document.getElementById('proof-file')?.addEventListener('change', () => {
+            const file = document.getElementById('proof-file').files[0];
+            const label = document.getElementById('proof-file-label');
+            if (label) label.textContent = file ? file.name : 'Nenhum arquivo selecionado';
+        });
+
+        document.getElementById('btn-send-proof')?.addEventListener('click', async () => {
+            const fileInput = document.getElementById('proof-file');
+            const amountInput = document.getElementById('proof-amount');
+            const file = fileInput?.files[0];
+            const amount = parseFloat(amountInput?.value);
+
+            if (!amount || amount <= 0) {
+                if (window.showToast) showToast('Informe o valor pago', 'error');
+                return;
+            }
+            if (!file) {
+                if (window.showToast) showToast('Selecione o comprovante', 'error');
+                return;
+            }
+
+            try {
+                if (window.showLoading) showLoading();
+                const fileDataUrl = await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result);
+                    reader.onerror = reject;
+                    reader.readAsDataURL(file);
+                });
+                await addPaymentProof(loanId, {
+                    amount, date: new Date().toISOString(), type: 'partial', fileDataUrl
+                });
+                if (window.hideLoading) hideLoading();
+                if (window.showToast) showToast('Comprovante enviado! Aguarde a confirmação do gestor.', 'success');
+                amountInput.value = '';
+                fileInput.value = '';
+                document.getElementById('proof-file-label').textContent = 'Nenhum arquivo selecionado';
+            } catch (err) {
+                if (window.hideLoading) hideLoading();
+                if (window.showToast) showToast('Erro ao enviar: ' + err.message, 'error');
+            }
         });
        
         // Auto-scroll para simulador se veio do botão "Simular"
@@ -1488,10 +1795,13 @@ window.loadVendedorDashboard = async function() {
 
         const proposals = await getProposals({ vendedorId: user.uid });
         const pending = proposals.filter(p => p.status === 'pending').length;
-        const approved = proposals.filter(p => p.status === 'approved').length;
+        const approvedProposals = proposals.filter(p => p.status === 'approved');
+        const approved = approvedProposals.length;
         const rejected = proposals.filter(p => p.status === 'rejected').length;
-        const totalVendido = proposals.filter(p => p.status === 'approved')
-            .reduce((sum, p) => sum + (p.principalAmount || 0), 0);
+        const totalVendido = approvedProposals.reduce((sum, p) => sum + (p.principalAmount || 0), 0);
+        const totalComissao = approvedProposals.reduce((sum, p) => sum + (p.commissionAmount || 0), 0);
+
+        const referralLink = `${location.origin}${location.pathname}#new-proposal?ref=${user.uid}`;
 
         appDiv.innerHTML = `
             <div class="page-header" style="display:flex;justify-content:space-between;align-items:center;">
@@ -1502,7 +1812,7 @@ window.loadVendedorDashboard = async function() {
             <div class="stats-grid" style="margin-top:16px;">
                 <div class="stat-card">
                     <div class="stat-value">${pending}</div>
-                    <div class="stat-label">⏳ Pendentes</div>
+                    <div class="stat-label">${icon('clock')} Pendentes</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-value">${approved}</div>
@@ -1516,6 +1826,18 @@ window.loadVendedorDashboard = async function() {
                     <div class="stat-value">${formatarMoeda(totalVendido)}</div>
                     <div class="stat-label">${icon('banknote')} Total Vendido</div>
                 </div>
+                <div class="stat-card" style="grid-column:span 2;">
+                    <div class="stat-value" style="color:var(--success);">${formatarMoeda(totalComissao)}</div>
+                    <div class="stat-label">${icon('dollar-sign')} Comissão Acumulada</div>
+                </div>
+            </div>
+
+            <div class="card" style="margin-top:16px;">
+                <h4 style="margin-bottom:8px;">${icon('handshake')} Link de Indicação</h4>
+                <p style="font-size:0.8rem;color:var(--text-light);margin-bottom:12px;">
+                    Compartilhe para que novas propostas já venham vinculadas a você.
+                </p>
+                <button class="btn btn-outline btn-block" id="btn-copy-referral">${icon('file-text')} Copiar Link de Indicação</button>
             </div>
 
             <h3 class="mt-3 mb-2">${icon('receipt')} Últimas Propostas</h3>
@@ -1528,6 +1850,7 @@ window.loadVendedorDashboard = async function() {
                                 ${window.proposalStatusBadge(p.status)}
                             </div>
                             <small>${formatarMoeda(p.principalAmount)} • ${(p.dailyInterestRate * 100).toFixed(2)}%/dia</small>
+                            ${p.status === 'approved' && p.commissionAmount ? `<br><small style="color:var(--success);">Comissão: ${formatarMoeda(p.commissionAmount)}</small>` : ''}
                         </div>
                     `).join('')}
             </div>
@@ -1536,6 +1859,15 @@ window.loadVendedorDashboard = async function() {
                 <button class="btn btn-accent btn-block" onclick="location.hash='#new-proposal'">${icon('plus')} Nova Proposta de Crédito</button>
             </div>
         `;
+
+        document.getElementById('btn-copy-referral')?.addEventListener('click', async () => {
+            try {
+                await navigator.clipboard.writeText(referralLink);
+                if (window.showToast) showToast('Link copiado!', 'success');
+            } catch (e) {
+                if (window.showToast) showToast(referralLink, 'success');
+            }
+        });
     } catch (error) {
         console.error('Erro loadVendedorDashboard:', error);
         appDiv.innerHTML = `<div class="empty-state"><h3>Erro ao carregar dados</h3><p>${error.message}</p></div>`;
@@ -1553,12 +1885,14 @@ window.loadNewProposal = async function() {
     const user = auth.currentUser;
     const userDoc = user ? await db.collection('users').doc(user.uid).get() : null;
     const vendedorName = userDoc && userDoc.exists ? userDoc.data().name : '';
+    const viaReferral = !!getHashParam('ref');
 
     appDiv.innerHTML = `
         <div class="page-header" style="display:flex; justify-content:space-between; align-items:center;">
              <button onclick="history.back()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;">${icon('arrow-left')}</button>
              <h2>${icon('plus')} Nova Proposta</h2>
         </div>
+        ${viaReferral ? `<p style="font-size:0.8rem;color:var(--success);margin:-4px 0 12px;">${icon('handshake')} Aberto via link de indicação — a proposta já sai vinculada a ${vendedorName || 'você'}.</p>` : ''}
         <div class="card">
             <form id="new-proposal-form">
                 <div class="input-group"><label>Nome do Cliente</label><input type="text" id="proposal-client-name" required></div>

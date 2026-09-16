@@ -212,6 +212,142 @@ botão "Salvar Extrato" do cliente tinha o mesmo problema, chamando `gerarExtrat
 
 ---
 
+## Roadmap de novas funcionalidades (sprints 10–19: implementadas)
+
+As Sprints 10 a 19 abaixo foram **implementadas nesta rodada**, como versões
+**ilustrativas** para a apresentação a clientes (interface funcional, dados mockados em
+`js/offline-firebase.js`), deixando a integração real (gateway de pagamento, push de
+servidor, etc.) para uma fase posterior, já validada com o cliente. A Sprint 20 continua
+só como registro de visão de longo prazo, sem código.
+
+Todas as 9 sprints de feature (10 a 19) foram testadas ponta a ponta com Playwright
+(mobile 390×844, os 4 papéis — admin, cliente, vendedor, operador) cobrindo: salvar
+regras em `#settings`, cartão "Cobranças Sugeridas" no dashboard, badge de score na
+lista de clientes, gerar Pix (admin e cliente), abrir/fechar o formulário de
+renegociação, enviar um comprovante de pagamento real (upload de arquivo) e confirmá-lo
+como admin, registrar uma simulação de quitação e vê-la aparecer no painel do gestor,
+comissão acumulada do vendedor, e o bloqueio de `#settings` para o operador — **0 erros
+de console** em todos os fluxos. De brinde, corrigido um bug pré-existente: o histórico
+de pagamentos mostrava "Invalid Date" (usava `p.date.seconds` direto, sem checar se
+`date` já era uma string/Timestamp).
+
+### Sprint 10 — Cobrança automática por regra (gestor) — Implementado
+
+- **Objetivo:** o gestor configura uma regra do tipo "cobrar automaticamente a cada N
+  dias de atraso" em vez de mandar cada WhatsApp manualmente.
+- **Ilustrativo nesta fase:** tela em `#settings` para cadastrar a regra (ex.: "a cada 5
+  dias de atraso, sugerir cobrança"); o app calcula quais empréstimos estão "prontos
+  para cobrar hoje" e mostra um card "Cobranças sugeridas hoje" no dashboard, com o botão
+  de WhatsApp que já existe em `loadLoanDetail`. Não dispara nada sozinho.
+- **Fora de escopo agora:** disparo automático de verdade (exigiria um backend/worker
+  rodando 24h, incompatível com "100% offline no navegador").
+- **Arquivos:** `js/views.js` (novo bloco no dashboard), `js/db.js`
+  (`getCobrancasSugeridas()`), `store.collections.settings.general.reminderRuleDays`.
+
+### Sprint 11 — Renegociação de dívida (gestor) — Implementado
+
+- **Objetivo:** parcelar, dar desconto ou prorrogar o vencimento de um empréstimo em
+  atraso, sem precisar excluir e recriar.
+- **Ilustrativo nesta fase:** botão "Renegociar" em `loadLoanDetail` abre um formulário
+  (novo valor, novo prazo, motivo) que fecha o empréstimo atual como `renegotiated` e
+  cria um novo `loan` vinculado (`renegotiatedFrom: loanId`), reaproveitando `addLoan`.
+- **Fora de escopo agora:** aprovação em múltiplas etapas/alçadas.
+- **Arquivos:** `js/db.js` (`renegotiateLoan()`), `js/views.js` (formulário), `js/calc.js`
+  (sem mudança — usa o cálculo já existente para o novo contrato).
+
+### Sprint 12 — Cobrança via Pix (gestor + cliente) — Implementado
+
+- **Objetivo:** oferecer uma cobrança Pix junto com o link de WhatsApp existente.
+- **Ilustrativo nesta fase:** gerar um **payload Pix estático fictício** (copia-e-cola +
+  QR code renderizado em `<canvas>` com uma lib leve, ou só um bloco visual "simulação de
+  QR Code") a partir do valor devido — deixa claro para o cliente do CerraLoan que dá
+  para plugar uma chave Pix real depois.
+- **Fora de escopo agora:** integração com PSP/banco real, confirmação automática de
+  pagamento.
+- **Arquivos:** `js/views.js` (`loadLoanDetail`, seção "Cobrança"), `js/reports.js` ou
+  novo `js/pix.js` (gerador do payload ilustrativo).
+
+### Sprint 13 — Filtro de relatório por período (gestor) — Implementado
+
+- **Objetivo:** exportar PDF/Excel só de um intervalo de datas, não a base inteira.
+- **Ilustrativo = real aqui** (é só filtro de dados, não depende de nada externo):
+  adicionar dois campos de data em `#settings` antes dos botões de exportar, e filtrar
+  `getLoans()`/`getPayments()` por `startDate`/`createdAt` antes de montar o
+  PDF/Excel.
+- **Arquivos:** `js/views.js` (loadSettings), `js/reports.js`
+  (`gerarRelatorioPDF(filtros)`, `exportarExcel(filtros)`).
+
+### Sprint 14 — Score de risco do cliente (gestor) — Implementado
+
+- **Objetivo:** indicador visual (bom/médio/ruim pagador) no perfil e na lista de
+  clientes, para o gestor decidir crédito mais rápido.
+- **Ilustrativo nesta fase:** cálculo simples e 100% local a partir do histórico já
+  existente — nº de empréstimos quitados em dia vs atrasados, sem nenhum serviço
+  externo de crédito (Serasa etc., que exigiria contrato e custo).
+- **Arquivos:** `js/calc.js` (`calcularScoreCliente(loans)`), `js/views.js`
+  (badge de score em `loadClientDetail`/`loadClients`).
+
+### Sprint 15 — Sub-admins com permissão limitada (gestor) — Implementado
+
+- **Objetivo:** um segundo tipo de usuário administrativo que só opera (cadastra
+  cliente, registra pagamento) mas não vê configurações/financeiro consolidado.
+- **Ilustrativo nesta fase:** novo `role: 'operador'`, reaproveitando toda a navegação
+  do admin mas escondendo `#settings` e os totais financeiros do dashboard via checagem
+  de role — mesmo padrão já usado para `vendedor`.
+- **Arquivos:** `js/app.js` (rotas/nav), `js/views.js` (esconder blocos por role),
+  `js/offline-firebase.js` (seed de 1 usuário operador de exemplo).
+
+### Sprint 16 — Comissão do vendedor (vendedor + gestor) — Implementado
+
+- **Objetivo:** vendedor vê quanto vai ganhar por proposta aprovada; gestor define o %.
+- **Ilustrativo nesta fase:** campo `commissionRate` em `settings.general`; ao aprovar
+  uma proposta, calcular e guardar `commissionAmount` nela; mostrar "Total de comissões"
+  no `loadVendedorDashboard`.
+- **Arquivos:** `js/db.js` (`approveProposal`), `js/views.js` (dashboard do vendedor e
+  tela de settings do gestor).
+
+### Sprint 17 — Link de indicação do vendedor — Implementado
+
+- **Objetivo:** vendedor compartilha um link que já pré-preenche a proposta com o nome
+  dele, sem o cliente precisar saber quem indicou.
+- **Ilustrativo nesta fase:** rota `#new-proposal?vendedorId=xxx` (mesmo padrão de
+  querystring que `#new-loan?clientId=` já usa) pré-carrega o campo vendedor; o vendedor
+  copia esse link da tela `#vendedor-dashboard`.
+- **Arquivos:** `js/views.js` (`loadNewProposal`, botão "Copiar link de indicação").
+
+### Sprint 18 — Notificação de vencimento (cliente) — Implementado
+
+- **Objetivo:** avisar o cliente antes dos juros aumentarem.
+- **Ilustrativo nesta fase:** notificação **local** do navegador (Web Notifications API,
+  já suportada por PWA) disparada ao abrir o app se houver empréstimo vencendo em breve
+  — não é push real de servidor (isso exigiria backend + Firebase Cloud Messaging).
+- **Arquivos:** `js/app.js` ou novo `js/notifications.js`, `sw.js` (permissão já pedida
+  no service worker existente).
+
+### Sprint 19 — Upload de comprovante + histórico de simulações (cliente) — Implementado
+
+- **Objetivo:** cliente anexa um print do Pix ao "pedir" um pagamento, e o app guarda as
+  datas que ele simulou quitação (sinal de intenção de pagar).
+- **Ilustrativo nesta fase:** o comprovante é lido como base64 e guardado no próprio
+  documento do pagamento no `localStorage` (só é viável em escala pequena — no Firebase
+  real isso vai para o Storage, não o Firestore); simulações salvas num array simples no
+  documento do empréstimo.
+- **Arquivos:** `js/views.js` (`loadMyLoanDetail`, `loadRequestLoan`), `js/db.js`.
+
+### Sprint 20 — Multi-empresa e app via Capacitor — Backlog/visão (não implementado)
+
+- **Objetivo:** dois itens maiores, de outra ordem de grandeza, citados como visão de
+  longo prazo (não para a demo imediata):
+  - **Multi-tenant:** cada empresa/gestor com sua própria base de dados isolada — no
+    Firebase real isso é um campo `companyId` em cada documento + regras de segurança
+    por empresa; no mock offline seria um "workspace" selecionável no login.
+  - **App via Capacitor:** empacotar o mesmo código (sem reescrever nada) para Play
+    Store/App Store.
+- **Este item fica só como registro de visão** — vale desenhar com mais calma quando o
+  CerraLoan for além de uso interno.
+
+---
+
 ## Backlog — o que falta para 100%
 
 ### Prioridade alta
@@ -264,6 +400,6 @@ npx http-server -p 8080 -c-1
 
 Logins de demonstração (dados ficam no `localStorage` do navegador):
 - Admin/gestor: `admin@admin.com` / `admin123`
-- Cliente 1: `cliente@cliente.com` / `cliente123`
-- Cliente 2: `cliente2@cliente.com` / `cliente123`
+- Operador (sem acesso a Configurações/financeiro consolidado): `operador@admin.com` / `operador123`
+- Cliente 1 a 5: `cliente@cliente.com`, `cliente2@cliente.com` ... `cliente5@cliente.com` / `cliente123`
 - Vendedor: `vendedor@vendedor.com` / `vendedor123`

@@ -327,6 +327,7 @@
         changed = ensureAuthUser('cliente4@cliente.com', 'cliente123', 'cliente4-demo') || changed;
         changed = ensureAuthUser('cliente5@cliente.com', 'cliente123', 'cliente5-demo') || changed;
         changed = ensureAuthUser('vendedor@vendedor.com', 'vendedor123', 'vendedor-demo') || changed;
+        changed = ensureAuthUser('operador@admin.com', 'operador123', 'operador-demo') || changed;
         saveAuthUsers();
 
         changed = ensureDoc('users', 'admin-demo', {
@@ -355,9 +356,13 @@
         changed = ensureDoc('users', 'vendedor-demo', {
             name: 'Vendedor Demo', email: 'vendedor@vendedor.com', role: 'vendedor', createdAt: makeTimestamp(daysAgo(now, 15))
         }) || changed;
+        changed = ensureDoc('users', 'operador-demo', {
+            name: 'Operador Demo', email: 'operador@admin.com', role: 'operador', createdAt: makeTimestamp(daysAgo(now, 10))
+        }) || changed;
 
         changed = ensureDoc('settings', 'general', {
-            companyName: 'CerraLoan', companyPhone: '62999999999', defaultDailyRate: 0.005
+            companyName: 'CerraLoan', companyPhone: '62999999999', defaultDailyRate: 0.005,
+            reminderRuleDays: 5, commissionRate: 0.03
         }) || changed;
 
         // ---- Cliente 1 (Cliente Teste): 1 emprestimo ativo, 1 pagamento parcial ----
@@ -441,6 +446,7 @@
             clientName: 'Fernanda Lima', clientCpf: '222.333.444-55', clientPhone: '11966665555',
             principalAmount: 600, dailyInterestRate: 0.005, notes: '',
             status: 'approved', vendedorId: 'vendedor-demo', vendedorName: 'Vendedor Demo',
+            commissionRate: 0.03, commissionAmount: 18,
             createdAt: makeTimestamp(daysAgo(now, 8)), approvedBy: 'admin-demo', approvedAt: makeTimestamp(daysAgo(now, 7))
         }) || changed;
         changed = ensureDoc('proposals', 'prop-demo-3', {
@@ -459,6 +465,7 @@
             clientName: 'Marcos Souza', clientCpf: '555.666.777-88', clientPhone: '11933332222',
             principalAmount: 450, dailyInterestRate: 0.005, notes: '',
             status: 'approved', vendedorId: 'vendedor-demo', vendedorName: 'Vendedor Demo',
+            commissionRate: 0.03, commissionAmount: 13.5,
             createdAt: makeTimestamp(daysAgo(now, 20)), approvedBy: 'admin-demo', approvedAt: makeTimestamp(daysAgo(now, 19))
         }) || changed;
 
@@ -472,6 +479,7 @@
             console.log('[CerraLoan] Login cliente 4: cliente4@cliente.com / cliente123');
             console.log('[CerraLoan] Login cliente 5: cliente5@cliente.com / cliente123');
             console.log('[CerraLoan] Login vendedor: vendedor@vendedor.com / vendedor123');
+            console.log('[CerraLoan] Login operador: operador@admin.com / operador123');
         }
     }
     ensureDemoData();

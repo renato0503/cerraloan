@@ -19,13 +19,16 @@ const CLIENT_ROUTES = ['#my-loans', '#my-loan-detail', '#profile', '#request-loa
 // Rotas exclusivas de vendedor
 const VENDEDOR_ROUTES = ['#vendedor-dashboard', '#new-proposal', '#my-proposals'];
 
-function showAdminNav() {
+function showAdminNav(role) {
     const adminNav = document.getElementById('admin-nav');
     const clientNav = document.getElementById('client-nav');
     const vendedorNav = document.getElementById('vendedor-nav');
     if (adminNav) adminNav.style.display = 'flex';
     if (clientNav) clientNav.style.display = 'none';
     if (vendedorNav) vendedorNav.style.display = 'none';
+
+    const settingsNavItem = document.querySelector('#admin-nav [data-route="settings"]');
+    if (settingsNavItem) settingsNavItem.style.display = (role === 'operador') ? 'none' : 'flex';
 }
 
 function showClientNav() {
@@ -56,9 +59,20 @@ function hideNav() {
 }
 
 function homeRouteForRole(role) {
-    if (role === 'admin') return '#dashboard';
+    if (role === 'admin' || role === 'operador') return '#dashboard';
     if (role === 'vendedor') return '#vendedor-dashboard';
     return '#my-loans';
+}
+
+// "operador" (Sprint 15 do roadmap): usa a mesma navegação do admin, mas sem acesso a
+// Configurações (nem ao que é considerado sensível/financeiro dentro das telas).
+const OPERADOR_BLOCKED_ROUTES = ['#settings'];
+function routesForRole(role) {
+    if (role === 'admin') return ADMIN_ROUTES;
+    if (role === 'operador') return ADMIN_ROUTES.filter(r => !OPERADOR_BLOCKED_ROUTES.includes(r));
+    if (role === 'client') return CLIENT_ROUTES;
+    if (role === 'vendedor') return VENDEDOR_ROUTES;
+    return [];
 }
 
 // Highlight do item ativo na nav
@@ -83,12 +97,10 @@ async function navigateTo(hash) {
     
     if (user) {
         const role = await getUserRole(user.uid);
-        const isOwnRoute = (role === 'admin' && ADMIN_ROUTES.includes(route)) ||
-                            (role === 'client' && CLIENT_ROUTES.includes(route)) ||
-                            (role === 'vendedor' && VENDEDOR_ROUTES.includes(route));
+        const isOwnRoute = routesForRole(role).includes(route);
         const isRestrictedRoute = ADMIN_ROUTES.includes(route) || CLIENT_ROUTES.includes(route) || VENDEDOR_ROUTES.includes(route);
 
-        // Usuário tentando acessar rota de outro papel → bloqueia
+        // Usuário tentando acessar rota de outro papel (ou bloqueada para o seu papel) → bloqueia
         if (isRestrictedRoute && !isOwnRoute) {
             console.warn(`${role} bloqueado de rota:`, route);
             location.hash = homeRouteForRole(role);
@@ -191,10 +203,10 @@ if (typeof auth !== 'undefined' && typeof db !== 'undefined') {
             const role = await getUserRole(user.uid);
             console.log('Role:', role);
             
-            if (role === 'admin') {
-                if(typeof showAdminNav === 'function') showAdminNav(); else updateNav(getRoute());
+            if (role === 'admin' || role === 'operador') {
+                if(typeof showAdminNav === 'function') showAdminNav(role); else updateNav(getRoute());
                 if(typeof hideLoading === 'function') hideLoading();
-                if (!location.hash || location.hash === '#' || 
+                if (!location.hash || location.hash === '#' ||
                     location.hash === '#login') {
                     location.hash = '#dashboard';
                 }

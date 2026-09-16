@@ -101,3 +101,31 @@ function formatarData(date) {
     const ano = d.getFullYear();
     return `${dia}/${mes}/${ano}`;
 }
+
+// Score de risco simples (100% local, sem serviço externo de crédito).
+// Cada empréstimo do cliente soma ou subtrai pontos com base no status/atraso atual.
+function calcularScoreCliente(loans) {
+    if (!loans || loans.length === 0) {
+        return { pontos: 0, nivel: 'novo', label: 'Sem histórico' };
+    }
+
+    let pontos = 0;
+    const hoje = new Date();
+
+    for (const loan of loans) {
+        if (loan.status === 'paid') {
+            pontos += 2;
+            continue;
+        }
+        const startDate = loan.startDate?.toDate ? loan.startDate.toDate() : new Date(loan.startDate);
+        const dias = diasEntre(startDate, hoje);
+        if (dias > 60) pontos -= 2;
+        else if (dias > 30) pontos -= 1;
+        else if (dias > 15) pontos += 0;
+        else pontos += 1;
+    }
+
+    if (pontos >= 2) return { pontos, nivel: 'bom', label: 'Bom pagador' };
+    if (pontos >= 0) return { pontos, nivel: 'medio', label: 'Risco médio' };
+    return { pontos, nivel: 'ruim', label: 'Risco alto' };
+}

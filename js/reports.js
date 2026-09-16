@@ -2,6 +2,19 @@
 // RELATÓRIOS E EXPORTAÇÕES - CerraLoan
 // ========================================
 
+// --- Filtra emprestimos por periodo (data de inicio do emprestimo) ---
+function filtrarLoansPorPeriodo(loans, filtro) {
+    if (!filtro || (!filtro.startDate && !filtro.endDate)) return loans;
+    const start = filtro.startDate ? new Date(filtro.startDate + 'T00:00:00') : null;
+    const end = filtro.endDate ? new Date(filtro.endDate + 'T23:59:59') : null;
+    return loans.filter(l => {
+        const d = l.startDate?.toDate ? l.startDate.toDate() : new Date(l.startDate);
+        if (start && d < start) return false;
+        if (end && d > end) return false;
+        return true;
+    });
+}
+
 // --- RECIBO DE PAGAMENTO (PDF) ---
 function gerarReciboPagamento(loan, payment, clientData) {
     const { jsPDF } = window.jspdf;
@@ -64,14 +77,14 @@ function gerarReciboPagamento(loan, payment, clientData) {
 }
 
 // --- RELATÓRIO DE EMPRÉSTIMOS (PDF) ---
-async function gerarRelatorioPDF() {
+async function gerarRelatorioPDF(filtro) {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
-    
+
     if(window.showLoading) showLoading();
-    
+
     try {
-        const loans = await getLoans();
+        const loans = filtrarLoansPorPeriodo(await getLoans(), filtro);
         const hoje = new Date();
         
         // Calcular saldo de cada empréstimo
@@ -99,7 +112,10 @@ async function gerarRelatorioPDF() {
         doc.setFontSize(10);
         doc.setFont('helvetica', 'normal');
         doc.text('Gerado em: ' + formatarData(hoje) + ' às ' + hoje.toLocaleTimeString('pt-BR'), 105, 22, { align: 'center' });
-        
+        if (filtro && (filtro.startDate || filtro.endDate)) {
+            doc.text(`Período: ${filtro.startDate ? formatarData(filtro.startDate) : 'início'} a ${filtro.endDate ? formatarData(filtro.endDate) : 'hoje'}`, 105, 27, { align: 'center' });
+        }
+
         // Resumo
         const ativos = loansComSaldo.filter(l => l.status === 'active');
         const quitados = loansComSaldo.filter(l => l.status === 'paid');
@@ -142,11 +158,11 @@ async function gerarRelatorioPDF() {
 }
 
 // --- EXPORTAR PARA EXCEL/CSV ---
-async function exportarExcel() {
+async function exportarExcel(filtro) {
     if(window.showLoading) showLoading();
-    
+
     try {
-        const loans = await getLoans();
+        const loans = filtrarLoansPorPeriodo(await getLoans(), filtro);
         const hoje = new Date();
         
         const dados = [];

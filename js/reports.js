@@ -272,3 +272,48 @@ function gerarComprovanteCliente(loan, payments, saldoHoje, clientData) {
     
     doc.save(`extrato_${clientData.name?.replace(/\s/g, '_') || 'cliente'}_${Date.now()}.pdf`);
 }
+
+// --- WRAPPER: CLIENTE BAIXA O PRÓPRIO EXTRATO (chamado a partir do loan-detail) ---
+async function gerarExtratoCliente(loanId) {
+    try {
+        if (window.showLoading) showLoading();
+
+        const user = auth.currentUser;
+        if (!user) throw new Error('Não autenticado');
+
+        const loanDoc = await db.collection('loans').doc(loanId).get();
+        if (!loanDoc.exists) throw new Error('Empréstimo não encontrado');
+        const loan = { id: loanDoc.id, ...loanDoc.data() };
+        if (loan.clientId !== user.uid) throw new Error('Acesso negado');
+
+        const paymentsSnap = await db.collection('loans').doc(loanId).collection('payments').get();
+        const payments = paymentsSnap.docs.map(p => ({
+            amount: p.data().amount,
+            date: p.data().date?.toDate ? p.data().date.toDate() : new Date(p.data().date),
+            type: p.data().type || 'partial'
+        }));
+        payments.sort((a, b) => b.date - a.date);
+
+        const startDate = loan.startDate?.toDate ? loan.startDate.toDate() : new Date(loan.startDate);
+        const resultado = calcularSaldo(loan.principalAmount, loan.dailyInterestRate, startDate, payments, new Date());
+        const saldoHoje = typeof resultado === 'object' ? resultado.saldoDevedor : resultado;
+
+        const userDoc = await db.collection('users').doc(user.uid).get();
+        const clientData = userDoc.exists ? userDoc.data() : { name: 'Cliente' };
+
+        gerarComprovanteCliente(loan, payments, saldoHoje, clientData);
+
+        if (window.hideLoading) hideLoading();
+        if (window.showToast) showToast('Extrato gerado!', 'success');
+    } catch (error) {
+        if (window.hideLoading) hideLoading();
+        console.error('Erro ao gerar extrato:', error);
+        if (window.showToast) showToast('Erro ao gerar extrato', 'error');
+    }
+}
+
+window.gerarRelatorioPDF = gerarRelatorioPDF;
+window.exportarExcel = exportarExcel;
+window.gerarReciboPagamento = gerarReciboPagamento;
+window.gerarComprovanteCliente = gerarComprovanteCliente;
+window.gerarExtratoCliente = gerarExtratoCliente;

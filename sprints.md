@@ -187,6 +187,31 @@ mais rica nunca chegava a essas sessões já existentes.
 
 ---
 
+## Sprint 9 — Correção: botões de Relatório/Extrato não faziam nada
+
+**Problema:** na tela de Configurações, "Gerar Relatório Geral (PDF)" e "Exportar Tudo
+(Excel)" não reagiam ao clique. Causa: os `onclick` chamavam `window.gerarRelatorioGeral()`
+e `window.exportarParaExcel()`, mas as funções reais em `js/reports.js` se chamam
+`gerarRelatorioPDF()` e `exportarExcel()` — nomes que nunca existiram, então o clique
+falhava silenciosamente (sem toast de erro, sem nada no console visível ao usuário). O
+botão "Salvar Extrato" do cliente tinha o mesmo problema, chamando `gerarExtratoCliente()`
+(inexistente) em vez de `gerarComprovanteCliente()`.
+
+**Feito:**
+- Corrigidos os `onclick` em `js/views.js` para chamar os nomes reais
+  (`gerarRelatorioPDF`, `exportarExcel`).
+- Criado `gerarExtratoCliente(loanId)` em `js/reports.js`: busca o empréstimo, os
+  pagamentos e os dados do cliente logado a partir do ID, calcula o saldo do dia e só
+  então chama `gerarComprovanteCliente(...)` — a função existente já pedia esses dados
+  prontos, mas o botão só tinha o ID do empréstimo disponível.
+- Todas as funções de relatório expostas explicitamente em `window.*` para não depender
+  de comportamento implícito de script clássico.
+- Validado com Playwright: os 3 botões agora disparam o download do arquivo esperado
+  (`relatorio_cerraloan_*.pdf`, `cerraloan_emprestimos_*.xlsx`, `extrato_*.pdf`),
+  0 erros de console.
+
+---
+
 ## Backlog — o que falta para 100%
 
 ### Prioridade alta

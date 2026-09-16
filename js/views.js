@@ -605,10 +605,10 @@ window.loadSettings = async function() {
             <p style="font-size:0.85rem;color:var(--text-light);margin-bottom:12px;">
                 Exporte os dados do sistema para análise.
             </p>
-            <button class="btn btn-outline btn-block mb-1" onclick="window.gerarRelatorioGeral()">
+            <button class="btn btn-outline btn-block mb-1" onclick="window.gerarRelatorioPDF()">
                 ${icon('file-text')} Gerar Relatório Geral (PDF)
             </button>
-            <button class="btn btn-outline btn-block" onclick="window.exportarParaExcel()">
+            <button class="btn btn-outline btn-block" onclick="window.exportarExcel()">
                 ${icon('bar-chart')} Exportar Tudo (Excel)
             </button>
         </div>
